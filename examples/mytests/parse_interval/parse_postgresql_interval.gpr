@@ -1,0 +1,17 @@
+with "gnatcoll";
+-- with "gnatcoll_postgres";
+
+project parse_postgresql_interval is
+   for Source_Dirs use (".");
+   for Object_Dir use "obj";
+   for Main use ("parse_postgresql_interval.adb");
+
+   package Compiler is
+      for Switches ("Ada") use ("-g", "-gnat2022");
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-E"); -- Get backtrace for exceptions
+   end Binder;
+
+end parse_postgresql_interval;

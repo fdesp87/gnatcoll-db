@@ -65,6 +65,10 @@ package body GNATCOLL.SQL.Sqlite.Builder is
      (Self : Sqlite_Connection_Record; Value : Boolean) return String;
    overriding function Money_Image
      (Self : Sqlite_Connection_Record; Value : T_Money) return String;
+   overriding function Numeric_24_8_Image
+     (Self : Sqlite_Connection_Record; Value : T_Numeric_24_8) return String;
+   overriding function Numeric_8_4_Image
+     (Self : Sqlite_Connection_Record; Value : T_Numeric_8_4) return String;
    overriding function Parameter_String
      (Self       : Sqlite_Connection_Record;
       Index      : Positive;
@@ -74,6 +78,10 @@ package body GNATCOLL.SQL.Sqlite.Builder is
    overriding function Field_Type_Autoincrement
      (Self : Sqlite_Connection_Record) return String;
    overriding function Field_Type_Money
+     (Self : Sqlite_Connection_Record) return String;
+   overriding function Field_Type_Numeric_24_8
+     (Self : Sqlite_Connection_Record) return String;
+   overriding function Field_Type_Numeric_8_4
      (Self : Sqlite_Connection_Record) return String;
    overriding function Can_Alter_Table_Constraints
      (Self : access Sqlite_Connection_Record) return Boolean;
@@ -131,6 +139,7 @@ package body GNATCOLL.SQL.Sqlite.Builder is
       Table_Name : String;
       Callback   : access procedure
         (Index             : Positive;
+         Constraint        : String;
          Local_Attribute   : Integer;
          Foreign_Table     : String;
          Foreign_Attribute : Integer));
@@ -168,6 +177,14 @@ package body GNATCOLL.SQL.Sqlite.Builder is
      (Self       : Sqlite_Cursor;
       Connection : access Database_Connection_Record'Class;
       Field      : SQL_Field_Integer) return Integer;
+   overriding function Last_Id
+     (Self       : Sqlite_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Smallint) return Short_Integer;
+   overriding function Last_Id
+     (Self       : Sqlite_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Bigint) return Long_Long_Integer;
    overriding function Field_Count
      (Self : Sqlite_Cursor) return GNATCOLL.SQL.Exec.Field_Index;
    overriding function Field_Name
@@ -179,6 +196,10 @@ package body GNATCOLL.SQL.Sqlite.Builder is
      (Self : Sqlite_Cursor; Field : Field_Index) return Boolean;
    overriding function Money_Value
      (Self  : Sqlite_Cursor; Field : Field_Index) return T_Money;
+   overriding function Numeric_24_8_Value
+     (Self  : Sqlite_Cursor; Field : Field_Index) return T_Numeric_24_8;
+   overriding function Numeric_8_4_Value
+     (Self  : Sqlite_Cursor; Field : Field_Index) return T_Numeric_8_4;
 
    function Is_Whitespace (C : Character) return Boolean;
    --  Whether C is a white space character
@@ -549,6 +570,14 @@ package body GNATCOLL.SQL.Sqlite.Builder is
                end if;
             end;
 
+         elsif Params (P).Get in SQL_Parameter_Smallint'Class then
+            declare
+               P2 : constant access SQL_Parameter_Smallint :=
+                 SQL_Parameter_Smallint (Params (P).Get.Element.all)'Access;
+            begin
+               Bind_Int (Stmt, P, Interfaces.C.int (P2.Val));
+            end;
+
          elsif Params (P).Get in SQL_Parameter_Integer'Class then
             declare
                P2 : constant access SQL_Parameter_Integer :=
@@ -565,10 +594,26 @@ package body GNATCOLL.SQL.Sqlite.Builder is
                Bind_Int64 (Stmt, P, Interfaces.C.long (P2.Val));
             end;
 
+         elsif Params (P).Get in SQL_Parameter_Interval'Class then
+            declare
+               P2 : constant access SQL_Parameter_Interval :=
+                 SQL_Parameter_Interval (Params (P).Get.Element.all)'Access;
+            begin
+               Bind_Int64 (Stmt, P, Interfaces.C.long (P2.Val));
+            end;
+
          elsif Params (P).Get in SQL_Parameter_Float'Class then
             declare
                P2 : constant access SQL_Parameter_Float :=
                  SQL_Parameter_Float (Params (P).Get.Element.all)'Access;
+            begin
+               Bind_Double (Stmt, P, Interfaces.C.double (P2.Val));
+            end;
+
+         elsif Params (P).Get in SQL_Parameter_Real'Class then
+            declare
+               P2 : constant access SQL_Parameter_Real :=
+                 SQL_Parameter_Real (Params (P).Get.Element.all)'Access;
             begin
                Bind_Double (Stmt, P, Interfaces.C.double (P2.Val));
             end;
@@ -589,6 +634,26 @@ package body GNATCOLL.SQL.Sqlite.Builder is
             begin
                --  In SQLite, Money type will be mapped as integer
                Money_Int := Integer (P2.Val / K_Delta);
+               Bind_Int (Stmt, P, Interfaces.C.int (Money_Int));
+            end;
+
+         elsif Params (P).Get in SQL_Parameter_Numeric_24_8'Class then
+            declare
+               P2 : constant access SQL_Parameter_Numeric_24_8 :=
+                SQL_Parameter_Numeric_24_8 (Params (P).Get.Element.all)'Access;
+            begin
+               --  In SQLite, Money type will be mapped as integer
+               Money_Int := Integer (P2.Val / N24_8_Delta);
+               Bind_Int (Stmt, P, Interfaces.C.int (Money_Int));
+            end;
+
+         elsif Params (P).Get in SQL_Parameter_Numeric_8_4'Class then
+            declare
+               P2 : constant access SQL_Parameter_Numeric_8_4 :=
+                 SQL_Parameter_Numeric_8_4 (Params (P).Get.Element.all)'Access;
+            begin
+               --  In SQLite, Money type will be mapped as integer
+               Money_Int := Integer (P2.Val / N8_4_Delta);
                Bind_Int (Stmt, P, Interfaces.C.int (Money_Int));
             end;
 
@@ -772,6 +837,29 @@ package body GNATCOLL.SQL.Sqlite.Builder is
 --           return Integer_Value (Res2, 0);
 --        end if;
 --        return -1;
+   end Last_Id;
+
+   overriding function Last_Id
+     (Self       : Sqlite_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Smallint) return Short_Integer
+   is
+      pragma Unreferenced (Self, Field);
+   begin
+      return Short_Integer (Last_Insert_Rowid
+        (Sqlite_Connection_Record (Connection.all).DB));
+   end Last_Id;
+
+   overriding function Last_Id
+     (Self       : Sqlite_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Bigint) return Long_Long_Integer
+   is
+      pragma Unreferenced (Self, Field);
+   begin
+      --  return Long_Long_Integer (Last_Insert_Rowid
+      return (Last_Insert_Rowid
+        (Sqlite_Connection_Record (Connection.all).DB));
    end Last_Id;
 
    -----------------
@@ -978,6 +1066,7 @@ package body GNATCOLL.SQL.Sqlite.Builder is
       Table_Name : String;
       Callback   : access procedure
         (Index             : Positive;
+         Constraint        : String;
          Local_Attribute   : Integer;
          Foreign_Table     : String;
          Foreign_Attribute : Integer))
@@ -1071,6 +1160,22 @@ package body GNATCOLL.SQL.Sqlite.Builder is
          (Value (Sqlite_Cursor'Class (Self), Field)) * K_Delta;
    end Money_Value;
 
+   overriding function Numeric_24_8_Value
+      (Self  : Sqlite_Cursor;
+       Field : Field_Index) return T_Numeric_24_8 is
+   begin
+      return T_Numeric_24_8'Value
+         (Value (Sqlite_Cursor'Class (Self), Field)) * K_Delta;
+   end Numeric_24_8_Value;
+
+   overriding function Numeric_8_4_Value
+      (Self  : Sqlite_Cursor;
+       Field : Field_Index) return T_Numeric_8_4 is
+   begin
+      return T_Numeric_8_4'Value
+         (Value (Sqlite_Cursor'Class (Self), Field)) * K_Delta;
+   end Numeric_8_4_Value;
+
    ------------------------------
    -- Field_Type_Autoincrement --
    ------------------------------
@@ -1097,6 +1202,26 @@ package body GNATCOLL.SQL.Sqlite.Builder is
       return "Integer";
    end Field_Type_Money;
 
+   overriding function Field_Type_Numeric_24_8
+     (Self : Sqlite_Connection_Record) return String
+   is
+      pragma Unreferenced (Self);
+   begin
+      --  Note : As SQLite does not support fixed point real, Money type is
+      --  represented as an integer that models cents.
+      return "Integer";
+   end Field_Type_Numeric_24_8;
+
+   overriding function Field_Type_Numeric_8_4
+     (Self : Sqlite_Connection_Record) return String
+   is
+      pragma Unreferenced (Self);
+   begin
+      --  Note : As SQLite does not support fixed point real, Money type is
+      --  represented as an integer that models cents.
+      return "Integer";
+   end Field_Type_Numeric_8_4;
+
    -----------------
    -- Money_Image --
    -----------------
@@ -1114,6 +1239,34 @@ package body GNATCOLL.SQL.Sqlite.Builder is
          return Img;
       end if;
    end Money_Image;
+
+   overriding function Numeric_24_8_Image
+     (Self : Sqlite_Connection_Record; Value : T_Numeric_24_8) return String
+   is
+      pragma Unreferenced (Self);
+      Long_Value : constant Long_Integer := Long_Integer (Value / N24_8_Delta);
+      Img : constant String := Long_Integer'Image (Long_Value);
+   begin
+      if Img (Img'First) = ' ' then
+         return Img (Img'First + 1 .. Img'Last);
+      else
+         return Img;
+      end if;
+   end Numeric_24_8_Image;
+
+   overriding function Numeric_8_4_Image
+     (Self : Sqlite_Connection_Record; Value : T_Numeric_8_4) return String
+   is
+      pragma Unreferenced (Self);
+      Long_Value : constant Long_Integer := Long_Integer (Value / N8_4_Delta);
+      Img : constant String := Long_Integer'Image (Long_Value);
+   begin
+      if Img (Img'First) = ' ' then
+         return Img (Img'First + 1 .. Img'Last);
+      else
+         return Img;
+      end if;
+   end Numeric_8_4_Image;
 
    ----------------------
    -- Parameter_String --

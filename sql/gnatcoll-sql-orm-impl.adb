@@ -65,6 +65,24 @@ package body GNATCOLL.SQL.Orm.Impl is
    end Get_Data;
 
    -------------------
+   -- Smallint_Value --
+   -------------------
+
+   function Smallint_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return Short_Integer is
+   begin
+      if Current (Self.Current) /= Self.Index then
+         raise Cursor_Has_Moved;
+      end if;
+
+      if Is_Null (Self.Current, Self.Column + Field) then
+         return Short_Integer'First;
+      else
+         return Smallint_Value (Self.Current, Self.Column + Field);
+      end if;
+   end Smallint_Value;
+
+   -------------------
    -- Integer_Value --
    -------------------
 
@@ -100,6 +118,25 @@ package body GNATCOLL.SQL.Orm.Impl is
          return Bigint_Value (Self.Current, Self.Column + Field);
       end if;
    end Bigint_Value;
+
+   ------------------
+   -- Interval_Value --
+   ------------------
+
+   function Interval_Value
+     (Self : Orm_Element'Class; Field : Field_Index)
+     return Duration is
+   begin
+      if Current (Self.Current) /= Self.Index then
+         raise Cursor_Has_Moved;
+      end if;
+
+      if Is_Null (Self.Current, Self.Column + Field) then
+         return Duration'First;
+      else
+         return Interval_Value (Self.Current, Self.Column + Field);
+      end if;
+   end Interval_Value;
 
    -------------------
    -- Boolean_Value --
@@ -175,6 +212,42 @@ package body GNATCOLL.SQL.Orm.Impl is
    end Time_Value;
 
    -----------------
+   -- Long_Float_Value --
+   ------------------
+
+   function Long_Float_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return Long_Float is
+   begin
+      if Current (Self.Current) /= Self.Index then
+         raise Cursor_Has_Moved;
+      end if;
+
+      if Is_Null (Self.Current, Self.Column + Field) then
+         return Long_Float'First;
+      else
+         return Long_Float_Value (Self.Current, Self.Column + Field);
+      end if;
+   end Long_Float_Value;
+
+   -----------------
+   -- Real_Value --
+   ------------------
+
+   function Real_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return Float is
+   begin
+      if Current (Self.Current) /= Self.Index then
+         raise Cursor_Has_Moved;
+      end if;
+
+      if Is_Null (Self.Current, Self.Column + Field) then
+         return Float'First;
+      else
+         return Float_Value (Self.Current, Self.Column + Field);
+      end if;
+   end Real_Value;
+
+   -----------------
    -- Float_Value --
    ------------------
 
@@ -191,6 +264,24 @@ package body GNATCOLL.SQL.Orm.Impl is
          return Float_Value (Self.Current, Self.Column + Field);
       end if;
    end Float_Value;
+
+   ----------------------------
+   -- Double_Precision_Value --
+   ----------------------------
+
+   function Double_Precision_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return Long_Float is
+   begin
+      if Current (Self.Current) /= Self.Index then
+         raise Cursor_Has_Moved;
+      end if;
+
+      if Is_Null (Self.Current, Self.Column + Field) then
+         return Long_Float'First;
+      else
+         return Long_Float_Value (Self.Current, Self.Column + Field);
+      end if;
+   end Double_Precision_Value;
 
    -----------------
    -- Money_Value --
@@ -210,6 +301,36 @@ package body GNATCOLL.SQL.Orm.Impl is
          return Money_Value (Self.Current, Self.Column + Field);
       end if;
    end Money_Value;
+
+   function Numeric_24_8_Value
+     (Self : Orm_Element'Class; Field : Field_Index)
+     return T_Numeric_24_8 is
+   begin
+      if Current (Self.Current) /= Self.Index then
+         raise Cursor_Has_Moved;
+      end if;
+
+      if Is_Null (Self.Current, Self.Column + Field) then
+         return T_Numeric_24_8'First;
+      else
+         return Numeric_24_8_Value (Self.Current, Self.Column + Field);
+      end if;
+   end Numeric_24_8_Value;
+
+   function Numeric_8_4_Value
+     (Self : Orm_Element'Class; Field : Field_Index)
+     return T_Numeric_8_4 is
+   begin
+      if Current (Self.Current) /= Self.Index then
+         raise Cursor_Has_Moved;
+      end if;
+
+      if Is_Null (Self.Current, Self.Column + Field) then
+         return T_Numeric_8_4'First;
+      else
+         return Numeric_8_4_Value (Self.Current, Self.Column + Field);
+      end if;
+   end Numeric_8_4_Value;
 
    ----------------------
    -- Generic_Managers --

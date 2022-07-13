@@ -1324,6 +1324,34 @@ package body GNATCOLL.SQL.Exec is
    end Boolean_Value;
 
    -------------------
+   -- Smallint_Value --
+   -------------------
+
+   function Smallint_Value
+     (Self   : Forward_Cursor;
+      Field  : Field_Index) return Short_Integer
+   is
+   begin
+      return Smallint_Value (DBMS_Forward_Cursor'Class (Self.Res.all), Field);
+   end Smallint_Value;
+
+   -------------------
+   -- Smallint_Value --
+   -------------------
+
+   function Smallint_Value
+     (Self    : Forward_Cursor;
+      Field   : Field_Index;
+      Default : Short_Integer) return Short_Integer
+   is
+   begin
+      return Smallint_Value (DBMS_Forward_Cursor'Class (Self.Res.all), Field);
+   exception
+      when Constraint_Error | Interfaces.C.Strings.Dereference_Error  =>
+         return Default;
+   end Smallint_Value;
+
+   -------------------
    -- Integer_Value --
    -------------------
 
@@ -1379,6 +1407,56 @@ package body GNATCOLL.SQL.Exec is
          return Default;
    end Bigint_Value;
 
+   ------------------
+   -- Interval_Value --
+   ------------------
+
+   function Interval_Value
+     (Self   : Forward_Cursor;
+      Field  : Field_Index) return Duration
+   is
+   begin
+      return Interval_Value (DBMS_Forward_Cursor'Class (Self.Res.all), Field);
+   end Interval_Value;
+
+   ------------------
+   -- Interval_Value --
+   ------------------
+
+   function Interval_Value
+     (Self   : Forward_Cursor;
+      Field  : Field_Index;
+      Default : Duration) return Duration
+   is
+   begin
+      return Interval_Value (DBMS_Forward_Cursor'Class (Self.Res.all), Field);
+   exception
+      when Constraint_Error | Interfaces.C.Strings.Dereference_Error  =>
+         return Default;
+   end Interval_Value;
+
+   -----------------
+   -- Real_Value --
+   -----------------
+
+   function Real_Value
+     (Self  : Forward_Cursor;
+      Field : Field_Index) return Float is
+   begin
+      return Real_Value (DBMS_Forward_Cursor'Class (Self.Res.all), Field);
+   end Real_Value;
+
+   function Real_Value
+     (Self    : Forward_Cursor;
+      Field   : Field_Index;
+      Default : Float) return Float is
+   begin
+      return Real_Value (DBMS_Forward_Cursor'Class (Self.Res.all), Field);
+   exception
+      when Constraint_Error | Interfaces.C.Strings.Dereference_Error =>
+         return Default;
+   end Real_Value;
+
    -----------------
    -- Float_Value --
    -----------------
@@ -1424,6 +1502,29 @@ package body GNATCOLL.SQL.Exec is
          return Default;
    end Long_Float_Value;
 
+   ----------------------------
+   -- Double_Precision_Value --
+   ----------------------------
+
+   function Double_Precision_Value
+     (Self : Forward_Cursor; Field : Field_Index) return Long_Float is
+   begin
+      return Long_Float_Value
+               (DBMS_Forward_Cursor'Class (Self.Res.all), Field);
+   end Double_Precision_Value;
+
+   function Double_Precision_Value
+     (Self    : Forward_Cursor;
+      Field   : Field_Index;
+      Default : Long_Float) return Long_Float is
+   begin
+      return Long_Float_Value
+               (DBMS_Forward_Cursor'Class (Self.Res.all), Field);
+   exception
+      when Constraint_Error | Interfaces.C.Strings.Dereference_Error =>
+         return Default;
+   end Double_Precision_Value;
+
    -----------
    -- Value --
    -----------
@@ -1434,6 +1535,22 @@ package body GNATCOLL.SQL.Exec is
    begin
       return Money_Value (DBMS_Forward_Cursor'Class (Self.Res.all), Field);
    end Money_Value;
+
+   function Numeric_24_8_Value
+     (Self : Forward_Cursor; Field : Field_Index)
+     return T_Numeric_24_8 is
+   begin
+      return Numeric_24_8_Value (DBMS_Forward_Cursor'Class (Self.Res.all),
+                                 Field);
+   end Numeric_24_8_Value;
+
+   function Numeric_8_4_Value
+     (Self : Forward_Cursor; Field : Field_Index)
+     return T_Numeric_8_4 is
+   begin
+      return Numeric_8_4_Value (DBMS_Forward_Cursor'Class (Self.Res.all),
+                                Field);
+   end Numeric_8_4_Value;
 
    ----------------
    -- Time_Value --
@@ -1465,6 +1582,40 @@ package body GNATCOLL.SQL.Exec is
      (Self       : Forward_Cursor;
       Connection : access Database_Connection_Record'Class;
       Field      : SQL_Field_Integer) return Integer is
+   begin
+      if Perform_Queries then
+         if Self.Res = null then
+            return -1;
+         else
+            return Last_Id
+              (DBMS_Forward_Cursor'Class (Self.Res.all), Connection, Field);
+         end if;
+      else
+         return 1;  --  Dummy
+      end if;
+   end Last_Id;
+
+   function Last_Id
+     (Self       : Forward_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Bigint) return Long_Long_Integer is
+   begin
+      if Perform_Queries then
+         if Self.Res = null then
+            return -1;
+         else
+            return Last_Id
+              (DBMS_Forward_Cursor'Class (Self.Res.all), Connection, Field);
+         end if;
+      else
+         return 1;  --  Dummy
+      end if;
+   end Last_Id;
+
+   function Last_Id
+     (Self       : Forward_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Smallint) return Short_Integer is
    begin
       if Perform_Queries then
          if Self.Res = null then
@@ -1940,6 +2091,19 @@ package body GNATCOLL.SQL.Exec is
    end "+";
 
    ---------------
+   -- As_Smallint --
+   ---------------
+
+   function As_Smallint (Value : Short_Integer) return SQL_Parameter is
+      R : SQL_Parameter;
+      P : SQL_Parameter_Smallint;
+   begin
+      P.Val := Value;
+      R.Set (P);
+      return R;
+   end As_Smallint;
+
+   ---------------
    -- As_Bigint --
    ---------------
 
@@ -1951,6 +2115,19 @@ package body GNATCOLL.SQL.Exec is
       R.Set (P);
       return R;
    end As_Bigint;
+
+   ---------
+   -- "+" --
+   ---------
+
+   function "+" (Value : Duration) return SQL_Parameter is
+      R : SQL_Parameter;
+      P : SQL_Parameter_Interval;
+   begin
+      P.Val := Value;
+      R.Set (P);
+      return R;
+   end "+";
 
    ---------
    -- "+" --
@@ -1977,6 +2154,32 @@ package body GNATCOLL.SQL.Exec is
       R.Set (P);
       return R;
    end "+";
+
+   -------------------
+   -- As_Real --
+   -------------------
+
+   function As_Real (Value : Float) return SQL_Parameter is
+      R : SQL_Parameter;
+      P : SQL_Parameter_Real;
+   begin
+      P.Val := Value;
+      R.Set (P);
+      return R;
+   end As_Real;
+
+   -------------------------
+   -- As_Double_Precision --
+   -------------------------
+
+   function As_Double_Precision (Value : Long_Float) return SQL_Parameter is
+      R : SQL_Parameter;
+      P : SQL_Parameter_Double_Precision;
+   begin
+      P.Val := Value;
+      R.Set (P);
+      return R;
+   end As_Double_Precision;
 
    -------------------
    -- As_Long_Float --
@@ -2024,6 +2227,24 @@ package body GNATCOLL.SQL.Exec is
    function "+" (Value : T_Money) return SQL_Parameter is
       R : SQL_Parameter;
       P : SQL_Parameter_Money;
+   begin
+      P.Val := Value;
+      R.Set (P);
+      return R;
+   end "+";
+
+   function "+" (Value : T_Numeric_24_8) return SQL_Parameter is
+      R : SQL_Parameter;
+      P : SQL_Parameter_Numeric_24_8;
+   begin
+      P.Val := Value;
+      R.Set (P);
+      return R;
+   end "+";
+
+   function "+" (Value : T_Numeric_8_4) return SQL_Parameter is
+      R : SQL_Parameter;
+      P : SQL_Parameter_Numeric_8_4;
    begin
       P.Val := Value;
       R.Set (P);

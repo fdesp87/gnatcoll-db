@@ -58,6 +58,7 @@ package body GNATCOLL.SQL.Inspect is
    Max_Fields_Per_Line : constant := 30;
    --  Maximum number of fields per line (separated by '|')
 
+
    procedure Parse_Line
      (Line         : in out String_List;
       Line_Number  : in out Natural;
@@ -115,6 +116,80 @@ package body GNATCOLL.SQL.Inspect is
       All_Field_Mappings.Append (Self);
    end Register_Field_Mapping;
 
+   -----------------------------
+   -- Dump the FKs of a Schema --
+   -----------------------------
+   procedure Dump_FKs (Schema : DB_Schema; Msg : String);
+   procedure Dump_FKs (Schema : DB_Schema; Msg : String) is
+      procedure Process_Table (T : in out Table_Description);
+      procedure Process_Table (T : in out Table_Description) is
+         Cursor_FKD  : Foreign_Keys.Cursor;
+         Id          : Integer := 1;
+         Cursor_Pair : Pair_Lists.Cursor;
+         P     : Field_Pair;
+         From  : Field;
+         To    : Field;
+         ToAdj : Field;
+         Ambg  : Boolean;
+         Rev   : GNAT.Strings.String_Access;
+      begin
+         Ada.Text_IO.Put_Line ("=========== " & T.Name & " =========");
+         Cursor_FKD := TDR (T.Unchecked_Get).FK.First;
+         while Has_Element (Cursor_FKD) loop
+            Ada.Text_IO.Put_Line ("Id: " & Image (Id, 1));
+            Ambg  := Element (Cursor_FKD).Get.Ambiguous;
+            Rev   := Element (Cursor_FKD).Get.Revert_Name;
+            Ada.Text_IO.Put_Line ("   Ambiguous: " & Ambg'Image);
+            if Rev /= null then
+               Ada.Text_IO.Put_Line ("   Rev:       " & Rev.all);
+            else
+               Ada.Text_IO.Put_Line ("   Rev:       ");
+            end if;
+
+            Cursor_Pair := Element (Cursor_FKD).Get.Fields.First;
+            while Has_Element (Cursor_Pair) loop
+               P := Element (Cursor_Pair);
+               From  := P.From;
+               To    := P.To;
+               ToAdj := Get_To (Element (Cursor_FKD),
+                                Element (Cursor_Pair));
+
+               Ada.Text_IO.Put ("      From:      ");
+               if From = No_Field then
+                  Ada.Text_IO.Put ("No_Field");
+               else
+                  Ada.Text_IO.Put (From.Get_Table.Name & "." &
+                                     From.Name);
+               end if;
+               Ada.Text_IO.New_Line;
+               Ada.Text_IO.Put ("      To:        ");
+               if To = No_Field then
+                  Ada.Text_IO.Put ("No_Field");
+               else
+                  Ada.Text_IO.Put (To.Get_Table.Name & "." & To.Name);
+               end if;
+               Ada.Text_IO.New_Line;
+               Ada.Text_IO.Put ("      ToAdj:     ");
+               if ToAdj = No_Field then
+                  Ada.Text_IO.Put_Line ("No_Field");
+               else
+                  Ada.Text_IO.Put_Line (ToAdj.Get_Table.Name & "." &
+                                          ToAdj.Name);
+               end if;
+               Ada.Text_IO.Put_Line ("      ----");
+               Next (Cursor_Pair);
+            end loop;
+
+            Id := Id + 1;
+            Next (Cursor_FKD);
+         end loop;
+      end Process_Table;
+   begin
+      Ada.Text_IO.Put_Line (Msg);
+      For_Each_Table (Schema, Process_Table'Access, False);
+      Ada.Text_IO.Put_Line ("===========");
+   end Dump_FKs;
+
    ---------------------------
    -- Simple_Field_Mappings --
    ---------------------------
@@ -136,6 +211,17 @@ package body GNATCOLL.SQL.Inspect is
          return Dummy;
       end Parameter_Type;
 
+      ------------------
+      -- Type_Fom_SQL --
+      ------------------
+
+      overriding function Type_From_SQL
+        (Self : in out Simple_Field_Mapping; Str : String) return Boolean
+      is
+      begin
+         return (Str = SQL_Type);
+      end Type_From_SQL;
+
       -----------------
       -- Type_To_SQL --
       -----------------
@@ -155,15 +241,30 @@ package body GNATCOLL.SQL.Inspect is
          (Simple_Field_Mapping'(Field_Mapping with null record));
    end Simple_Field_Mappings;
 
+   package Smallint_Mappings is new Simple_Field_Mappings
+     ("smallint", "SQL_Field_Smallint", SQL_Parameter_Smallint);
    package Bigint_Mappings is new Simple_Field_Mappings
      ("bigint", "SQL_Field_Bigint", SQL_Parameter_Bigint);
+   package Interval_Mappings is new Simple_Field_Mappings
+     ("interval", "SQL_Field_Interval", SQL_Parameter_Interval);
    package Boolean_Mappings is new GNATCOLL.SQL.Inspect.Simple_Field_Mappings
      ("boolean", "SQL_Field_Boolean", SQL_Parameter_Boolean);
    package Time_Mappings is new Simple_Field_Mappings
      ("time", "SQL_Field_Time", SQL_Parameter_Time);
    package Date_Mappings is new Simple_Field_Mappings
      ("date", "SQL_Field_Date", SQL_Parameter_Date);
-   pragma Unreferenced (Bigint_Mappings, Time_Mappings, Date_Mappings);
+   package Real_Mappings is new Simple_Field_Mappings
+     ("real", "SQL_Field_Real", SQL_Parameter_Real);
+   package Double_Precision_Mappings is new Simple_Field_Mappings
+     ("double precision", "SQL_Field_Double_Precision",
+      SQL_Parameter_Double_Precision);
+   pragma Unreferenced (Smallint_Mappings,
+                        Real_Mappings,
+                        Double_Precision_Mappings,
+                        Interval_Mappings,
+                        Bigint_Mappings,
+                        Time_Mappings,
+                        Date_Mappings);
    --  The side effect is to register the mappings
 
    ---------
@@ -360,6 +461,92 @@ package body GNATCOLL.SQL.Inspect is
       return No_Field;
    end Is_FK;
 
+   -----------
+   -- Is_FK --
+   -----------
+
+   function Is_FK (Self : Field) return Boolean is
+   begin
+      return Self.Is_FK /= No_Field;
+   end Is_FK;
+
+   ----------------------
+   -- Reverse_Relation --
+   ----------------------
+
+   function Reverse_Relation (Self : Field)
+                              return GNAT.Strings.String_Access is
+      T : Table_Description;
+      C : Foreign_Keys.Cursor;
+   begin
+      if Is_FK (Self) = No_Field then
+         return null;
+      end if;
+      T := Table_Description (Get_Table (Self));
+      C := TDR (T.Unchecked_Get).FK.First;
+      while Has_Element (C) loop
+         declare
+            A : Pair_Lists.Cursor := Element (C).Get.Fields.First;
+            P : Field_Pair;
+            R : GNAT.Strings.String_Access;
+         begin
+            while Has_Element (A) loop
+               P := Element (A);
+               if P.From = Self then
+                  R := Element (C).Get.Revert_Name;
+                  return R;
+               end if;
+               Next (A);
+            end loop;
+         end;
+         Next (C);
+      end loop;
+      return null;
+   end Reverse_Relation;
+
+   --------------------
+   -- Is_Multiple_FK --
+   --------------------
+
+   function Is_Multiple_FK (Self : Field) return Boolean is
+      T : Table_Description;
+      C : Foreign_Keys.Cursor;
+   begin
+      if Is_FK (Self) = No_Field then
+         return False;
+      end if;
+      T := Table_Description (Get_Table (Self));
+      C := TDR (T.Unchecked_Get).FK.First;
+      while Has_Element (C) loop
+         declare
+            A : Pair_Lists.Cursor := Element (C).Get.Fields.First;
+            P : Field_Pair;
+         begin
+            while Has_Element (A) loop
+               P := Element (A);
+               if P.From = Self then
+                  return (Length (Element (C).Get.Fields) > 1);
+               end if;
+               Next (A);
+            end loop;
+         end;
+         Next (C);
+      end loop;
+      return False;
+   end Is_Multiple_FK;
+
+   ----------------------
+   -- Is_Autoincrement --
+   ----------------------
+
+   function Is_Autoincrement (Self : Field) return Boolean is
+   begin
+      if Self.Get.Props.Serial then
+         return True;
+      end if;
+      return (Self.Get_Type.all in Field_Mapping_Autoincrement'Class);
+   end Is_Autoincrement;
+
    ----------
    -- Free --
    ----------
@@ -491,6 +678,33 @@ package body GNATCOLL.SQL.Inspect is
          For_Each_Field (Self.Super_Table, Callback, Include_Inherited);
       end if;
    end For_Each_Field;
+
+   --------------------
+   -- For_Each_PK --
+   --------------------
+
+   procedure For_Each_PK
+     (Self              : Table_Description;
+      Callback          : access procedure (F : in out Field);
+      Include_Inherited : Boolean := False)
+   is
+      C : Field_Lists.Cursor := TDR (Self.Unchecked_Get).Fields.First;
+      F : Field;
+   begin
+      while Has_Element (C) loop
+         F := Element (C);
+         if F.Is_PK then
+            Callback (F);
+         end if;
+         Next (C);
+      end loop;
+
+      if Include_Inherited
+        and then TDR (Self.Unchecked_Get).Super_Table /= No_Table
+      then
+         For_Each_PK (Self.Super_Table, Callback, Include_Inherited);
+      end if;
+   end For_Each_PK;
 
    ---------------------
    -- Field_From_Name --
@@ -678,7 +892,8 @@ package body GNATCOLL.SQL.Inspect is
    is
       pragma Unreferenced (Self);
    begin
-      if Str in "integer" | "smallint" | "oid" then
+--      if Str in "integer" | "smallint" | "oid" then
+      if Str in "integer" | "oid" then
          return True;
 
       elsif Str'Length > 7
@@ -761,6 +976,49 @@ package body GNATCOLL.SQL.Inspect is
    -----------------
 
    overriding function Type_To_SQL
+     (Self         : Field_Mapping_Real;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String
+   is
+      pragma Unreferenced (Self, Format);
+   begin
+      return (if For_Database then "Real" else "SQL_Field_Real");
+   end Type_To_SQL;
+
+   -----------------
+   -- Type_To_SQL --
+   -----------------
+
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Double_Precision;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String
+   is
+      pragma Unreferenced (Self, Format);
+   begin
+      return (if For_Database then "Double Precision"
+              else "SQL_Field_Double_Precision");
+   end Type_To_SQL;
+
+   -----------------
+   -- Type_To_SQL --
+   -----------------
+
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Smallint;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String
+   is
+      pragma Unreferenced (Self, Format);
+   begin
+      return (if For_Database then "Smallint" else "SQL_Field_Smallint");
+   end Type_To_SQL;
+
+   -----------------
+   -- Type_To_SQL --
+   -----------------
+
+   overriding function Type_To_SQL
      (Self         : Field_Mapping_Integer;
       Format       : access Formatter'Class := null;
       For_Database : Boolean := True) return String
@@ -783,6 +1041,64 @@ package body GNATCOLL.SQL.Inspect is
    begin
       return (if For_Database then "timestamp with time zone"
               else "SQL_Field_Time");
+   end Type_To_SQL;
+
+   -----------------
+   -- Type_To_SQL --
+   -----------------
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Interval;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String
+   is
+      pragma Unreferenced (Self, Format);
+   begin
+      return (if For_Database
+              then "interval"
+              else "SQL_Field_Interval");
+   end Type_To_SQL;
+
+   -----------------
+   -- Type_To_SQL --
+   -----------------
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Money;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String
+   is
+      pragma Unreferenced (Self, Format);
+   begin
+      return (if For_Database
+              then "Money"
+              else "SQL_Field_Money");
+   end Type_To_SQL;
+
+   -----------------
+   -- Type_To_SQL --
+   -----------------
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Numeric_24_8;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String
+   is
+      pragma Unreferenced (Self, Format);
+   begin
+      return (if For_Database then "numeric(24,8)"
+              else "SQL_Field_Numeric_24_8");
+   end Type_To_SQL;
+
+   -----------------
+   -- Type_To_SQL --
+   -----------------
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Numeric_8_4;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String
+   is
+      pragma Unreferenced (Self, Format);
+   begin
+      return (if For_Database then "numeric(8,4)"
+              else "SQL_Field_Numeric_8_4");
    end Type_To_SQL;
 
    --------------
@@ -833,11 +1149,21 @@ package body GNATCOLL.SQL.Inspect is
          Descr : Field_Description;
          Ref   : Field;
          T     : constant Field_Mapping_Access := From_SQL (Typ);
+         Is_Serial : Boolean;
       begin
          if T = null then
             Put_Line
               ("Error: unknown field type " & Typ & " in " & Table.Name);
             raise Invalid_Type;
+         end if;
+
+         if Default_Value'Length > 7 and then
+           Default_Value (Default_Value'First .. Default_Value'First + 7)
+           = "nextval("
+         then
+            Is_Serial := True;
+         else
+            Is_Serial := False;
          end if;
 
          Descr := Field_Description'
@@ -848,6 +1174,7 @@ package body GNATCOLL.SQL.Inspect is
             Default     => null,
             Props       => (PK       => Is_Primary_Key,
                             Not_Null => Not_Null or else Is_Primary_Key,
+                            Serial => Is_Serial,
                             others => <>),
             FK          => False,
             Table       => Table.Weak,
@@ -876,8 +1203,9 @@ package body GNATCOLL.SQL.Inspect is
    -- Read_Schema --
    -----------------
 
-   overriding function Read_Schema
-     (Self : DB_Schema_IO) return DB_Schema
+   overriding function Read_Schema (Self : DB_Schema_IO;
+                                    Auto_Data : Boolean := False)
+                                    return DB_Schema
    is
       Schema : DB_Schema;
       T : Natural := 0;
@@ -902,6 +1230,7 @@ package body GNATCOLL.SQL.Inspect is
       procedure On_Table (Name, Description : String; Kind : Relation_Kind) is
          Descr : Table_Description_Record;
          Ref   : Table_Description;
+         Idx   : Integer;
       begin
          if not Match (Name, Self.Filter) then
             return;
@@ -911,8 +1240,17 @@ package body GNATCOLL.SQL.Inspect is
          Descr.Id          := T;
          Descr.Kind        := Kind;
          Descr.Name        := new String'(Name);
-         Descr.Row         := null;  --  Will default to Descr.Name
          Descr.Description := new String'(Description);
+         Idx := Index (Description, ") ");
+         if Auto_Data and then Description'Length >= 4 and then
+           Description (Description'First) = '(' and then
+           Idx in Description'Range
+         then
+            Descr.Row :=
+              new String'(Description (Description'First + 1 .. Idx - 1));
+         else
+            Descr.Row := null;  --  Will default to Descr.Name
+         end if;
          Ref.Set (Descr);
 
          Parse_Table (Self, Ref, TDR (Ref.Unchecked_Get).Fields);
@@ -950,10 +1288,11 @@ package body GNATCOLL.SQL.Inspect is
          Prev_Index : Integer := -1;
          To_Table   : Table_Description;
          Descr      : Foreign_Key_Description;
-         R          : Foreign_Key;
+         FK         : Foreign_Key;
 
          procedure On_Key
            (Index             : Positive;
+            Constraint        : String;
             Local_Attribute   : Integer;
             Foreign_Table     : String;
             Foreign_Attribute : Integer);
@@ -961,40 +1300,64 @@ package body GNATCOLL.SQL.Inspect is
 
          procedure On_Key
            (Index             : Positive;
+            Constraint        : String;
             Local_Attribute   : Integer;
             Foreign_Table     : String;
             Foreign_Attribute : Integer)
          is
             From : Field;
+            Rev  : GNAT.Strings.String_Access := null;
+            Tmp  : GNAT.Strings.String_Access;
+            Idx  : Integer;
          begin
             if Prev_Index /= Index then
                --  A new foreign key, as opposed to a new attribute in the same
                --  key
 
                if Prev_Index /= -1 then
-                  R.Set (Descr);
-                  Append (TDR (Table.Unchecked_Get).FK, R);
+                  FK.Set (Descr);
+                  Append (TDR (Table.Unchecked_Get).FK, FK);
                end if;
 
                Prev_Index := Index;
 
+               From := Field_From_Index (Table, Local_Attribute);
+               Tmp := From.Get.Description;
+               if Auto_Data and then
+                 Tmp /= null and then
+                 Tmp.all'Length > 1 and then
+                 Tmp.all (Tmp.all'First) = '(' and then
+                 Tmp.all (Tmp.all'First + 1) /= ')'
+               then
+                  Idx := Fixed.Index (Tmp.all, ")");
+                  if Idx in Tmp.all'Range then
+                     Rev := new
+                       String'(Tmp (Tmp.all'First + 1 .. Idx - 1));
+                  end if;
+               elsif Constraint /= "" then
+                  Rev := new String'(Constraint);
+               end if;
+
                To_Table := Get_Table (Schema, Foreign_Table);
+
                Descr :=
                  (To_Table        => To_Table.Weak,
-                  Revert_Name     => null,
+                  Revert_Name     => Rev,
                   Fields          => Pair_Lists.Empty_Vector,
                   Ambiguous       => False);
 
                Mark_FK_As_Ambiguous (Table, To_Table, Descr.Ambiguous);
+            else
+               From := Field_From_Index (Table, Local_Attribute);
             end if;
 
-            From := Field_From_Index (Table, Local_Attribute);
             From.Get.FK := True;
             Append
               (Descr.Fields,
                Field_Pair'
                  (From => From,
                   To   => Field_From_Index (To_Table, Foreign_Attribute)));
+
          end On_Key;
 
       begin
@@ -1004,8 +1367,8 @@ package body GNATCOLL.SQL.Inspect is
             Callback   => On_Key'Access);
 
          if Prev_Index /= -1 then
-            R.Set (Descr);
-            Append (TDR (Table.Unchecked_Get).FK, R);
+            FK.Set (Descr);
+            Append (TDR (Table.Unchecked_Get).FK, FK);
          end if;
       end Compute_Foreign_Keys;
 
@@ -1021,7 +1384,7 @@ package body GNATCOLL.SQL.Inspect is
       end loop;
 
       return Schema;
-   end Read_Schema;
+   end Read_Schema; --  DB_Schema_IO
 
    --------------
    -- To_Table --
@@ -1120,6 +1483,14 @@ package body GNATCOLL.SQL.Inspect is
          Param := +T_Money'Value (Value);
          Val := new String'(Param.Image (DB.all));
 
+      elsif Typ in Field_Mapping_Numeric_24_8'Class then
+         Param := +T_Numeric_24_8'Value (Value);
+         Val := new String'(Param.Image (DB.all));
+
+      elsif Typ in Field_Mapping_Numeric_8_4'Class then
+         Param := +T_Numeric_8_4'Value (Value);
+         Val := new String'(Param.Image (DB.all));
+
       else
          if Has_Xref then
             Val := new String'
@@ -1136,8 +1507,9 @@ package body GNATCOLL.SQL.Inspect is
    -- Read_Schema --
    -----------------
 
-   function Read_Schema
-     (Self : File_Schema_IO; Data : String) return DB_Schema
+   function Read_Schema (Self : File_Schema_IO;
+                         Auto_Data : Boolean := False;
+                         Data : String) return DB_Schema
    is
       Schema : DB_Schema;
       T     : Natural := 0;  --  Index of the table we are creating
@@ -1153,7 +1525,7 @@ package body GNATCOLL.SQL.Inspect is
       --  Split the line that starts at First into its fields.
       --  On exit, First points to the beginning of the next line
 
-      procedure Parse_Table (Table_Def, Name : String; Is_View : Boolean);
+      procedure Parse_Table (Table_Def, Name, Row : String; Is_View : Boolean);
       --  Parse a table description
 
       procedure Parse_Table_Inheritance
@@ -1192,6 +1564,9 @@ package body GNATCOLL.SQL.Inspect is
                   Props.Not_Null := True;
                elsif T = "NOCASE" then
                   Props.Case_Insensitive := True;
+               elsif T = "SERIAL" then
+                  Props.Not_Null := True;
+                  Props.Serial := True;
                end if;
             end;
          end loop;
@@ -1266,7 +1641,8 @@ package body GNATCOLL.SQL.Inspect is
       -- Parse_Table --
       -----------------
 
-      procedure Parse_Table (Table_Def, Name : String; Is_View : Boolean) is
+      procedure Parse_Table (Table_Def, Name, Row : String;
+                             Is_View : Boolean) is
          Table : Table_Description;
          Line  : Line_Fields;
          Attr_Id : Natural := 0;
@@ -1291,7 +1667,8 @@ package body GNATCOLL.SQL.Inspect is
 
                Table.Set (Table_Description_Record'
                    (Name        => new String'(Name),
-                    Row         => null,
+                    Row         => (if Row = "" then null else
+                                         new String'(Row)),
                     Kind        => Kind,
                     Id          => T,
                     Description => null,
@@ -1310,6 +1687,8 @@ package body GNATCOLL.SQL.Inspect is
 
             TDR (Table.Unchecked_Get).Is_Abstract :=
                Starts_With (Table_Def, "ABSTRACT");
+            TDR (Table.Unchecked_Get).Row :=
+              (if Row = "" then null else new String'(Row));
          end;
 
          Parse_Table_Inheritance (Table_Def, Table);
@@ -1355,6 +1734,15 @@ package body GNATCOLL.SQL.Inspect is
                   TDR (Table.Unchecked_Get).Has_PK :=
                     Props.PK or else TDR (Table.Unchecked_Get).Has_PK;
 
+                  --  check that views have no primary keys
+                  if TDR (Table.Unchecked_Get).Kind = Kind_View and then
+                    TDR (Table.Unchecked_Get).Has_PK
+                  then
+                     Put_Line ("Error: views cannot have primary keys " &
+                                 Table.Name);
+                     raise Invalid_Type;
+                  end if;
+
                   Att.Set (Field_Description'
                          (Name        => new String'(Line (1).all),
                           Typ         => null,
@@ -1369,6 +1757,12 @@ package body GNATCOLL.SQL.Inspect is
                   Append (TDR (Table.Unchecked_Get).Fields, Att);
 
                   if Att.Get.FK then
+                     --  check that views have no foreign keys
+                     if TDR (Table.Unchecked_Get).Kind = Kind_View then
+                        Put_Line ("Error: views cannot have foreign keys " &
+                                    Table.Name);
+                        raise Invalid_Type;
+                     end if;
                      Tmp := Find_Char (Typ (Typ'First + 3 .. Typ'Last), '(');
 
                      if Tmp < Typ'Last then
@@ -1461,10 +1855,10 @@ package body GNATCOLL.SQL.Inspect is
             if Line (1).all = "FK:" then
                To_Table := Get_Table (Schema, Line (2).all);
                FK.Set (Foreign_Key_Description'
-                    (To_Table        => To_Table.Weak,
-                     Revert_Name     => null,
-                     Ambiguous       => False,
-                     Fields          => Pair_Lists.Empty_Vector));
+                         (To_Table        => To_Table.Weak,
+                          Revert_Name     => null,
+                          Ambiguous       => False,
+                          Fields          => Pair_Lists.Empty_Vector));
                Mark_FK_As_Ambiguous (From_Table, To_Table, FK.Get.Ambiguous);
 
                declare
@@ -1479,14 +1873,14 @@ package body GNATCOLL.SQL.Inspect is
                      Skip_Blanks (From, First);
                      Skip_Blanks (To, First2);
 
-                     Tmp := Find_Char (From (First + 1 .. From'Last), ' ');
+                     Tmp  := Find_Char (From (First + 1 .. From'Last), ' ');
                      Tmp2 := Find_Char (To (First2 + 1 .. To'Last), ' ');
 
                      Append (FK.Get.Fields,
                              (From => From_Table.Field_From_Name
-                                        (From (First .. Tmp - 1)),
+                                (From (First .. Tmp - 1)),
                               To   => To_Table.Field_From_Name
-                                        (To (First2 .. Tmp2 - 1))));
+                                (To (First2 .. Tmp2 - 1))));
                      First  := Tmp + 1;
                      First2 := Tmp2 + 1;
                   end loop;
@@ -1539,6 +1933,7 @@ package body GNATCOLL.SQL.Inspect is
                         Parse_Table
                           (Line (1).all,
                            Line (2).all,
+                           Line (3).all,
                            Is_View => Starts_With (Line (1).all, "VIEW"));
                      when Parsing_Properties    =>
                         Parse_Table_Properties (Line (2).all);
@@ -1556,14 +1951,123 @@ package body GNATCOLL.SQL.Inspect is
       declare
          Has_Errors : Boolean := False;
 
+         procedure Remove_Incomplete_Duplicates_FK
+           (T : in out Table_Description);
+         --  For tables with multiple PKs, the pointing tables have
+         --  two sets of FK:
+         --  1st Set: FKs coming from the field definition line with FK. These
+         --           FKs have To as No_Field but Revert_Name as specified if
+         --           it was indicated in the schema.
+         --  2nd Set: FKs coming from FK: lines. These FKs have To correctly
+         --           but Revert_Name is null.
+         --  Note that if the pointed table has just one PK, the FKs of
+         --  pointing tables have To to No_Field but when recovered, it
+         --  is adjusted to the unique PK of the pointed table. Obviously
+         --  this is not possible if the pointed table has multiple PKs,
+         --  the 2nd set has to be consulted.
+         --  The solution will consist in copying the revert name from the
+         --  FK in the 1st set to the corresponding one in the 2nd set and
+         --  then deleting the FK from the 1st set. To avoid name clashes,
+         --  the revert name will be postfixed with the field name.
+         procedure Remove_Incomplete_Duplicates_FK
+           (T : in out Table_Description)
+         is
+            procedure Explore (F       : Field;
+                               Success : in out Boolean;
+                               CFK1    : in out Foreign_Keys.Cursor);
+
+            --  find FK with From = F and To /= No_Field
+            procedure Explore (F       : Field;
+                               Success : in out Boolean;
+                               CFK1    : in out Foreign_Keys.Cursor)
+            is
+               CFK  : Foreign_Keys.Cursor;
+               CP   : Pair_Lists.Cursor;
+               F0   : Field;
+               TAdj : Field;
+            begin
+               CFK := TDR (T.Unchecked_Get).FK.First;
+               while Has_Element (CFK) loop
+                  CP := Element (CFK).Get.Fields.First;
+                  while Has_Element (CP) loop
+                     F0 := Element (CP).From;
+                     if F0 = F then
+                        TAdj := Get_To (Element (CFK),
+                                        Element (CP));
+                        if TAdj /= No_Field then
+                           Success := True;
+                           CFK1 := CFK;
+                           return;
+                        end if;
+                     end if;
+                     Next (CP);
+                  end loop;
+                  Next (CFK);
+               end loop;
+               Success := False;
+            end Explore;
+
+            --  terminating in 0 are used to explore TD.FK
+            Cursor_FK0 : Foreign_Keys.Cursor;
+            Cursor_P0  : Pair_Lists.Cursor;
+            From0      : Field;
+            ToAdj0     : Field;
+            Rev0       : GNAT.Strings.String_Access;
+            Found      : Boolean;
+            --  terminating in 1 are used to keep Rev0
+            Cursor_FK1 : Foreign_Keys.Cursor;
+            Cursor_P1  : Pair_Lists.Cursor;
+            FKD1       : Foreign_Key_Description;
+            FK1        : Foreign_Key;
+         begin
+            Cursor_FK0 := TDR (T.Unchecked_Get).FK.First;
+            while Has_Element (Cursor_FK0) loop
+               Cursor_P0 := Element (Cursor_FK0).Get.Fields.First;
+               while Has_Element (Cursor_P0) loop
+                  From0 := Element (Cursor_P0).From;
+                  ToAdj0 := Get_To (Element (Cursor_FK0),
+                                   Element (Cursor_P0));
+                  if ToAdj0 = No_Field then
+                     Found := False;
+                     Explore (From0, Found, Cursor_FK1);
+                     if Found then
+                        Rev0  := Element (Cursor_FK0).Get.Revert_Name;
+                        if Rev0 /= null and then Rev0.all /= "" then
+                           --  copy the revert name
+                           FKD1 := Element (Cursor_FK1).Get;
+                           FKD1.Revert_Name := Rev0;
+                           FK1.Set (FKD1);
+                           TDR (T.Unchecked_Get).FK.Replace_Element
+                             (Cursor_FK1, FK1);
+                        end if;
+                        --  save the cursor next
+                        Cursor_P1 := Pair_Lists.Next (Cursor_P0);
+                        --  now remove the incomplete pair
+                        Element (Cursor_FK0).Get.Fields.Delete (Cursor_P0);
+                        --  recover the cursor next
+                        Cursor_P0 := Cursor_P1;
+                     end if;
+                  else
+                     Next (Cursor_P0);
+                  end if;
+               end loop;
+               Next (Cursor_FK0);
+            end loop;
+
+            --  Do not remove the FKs with no pairs to conserve the Id.
+            --  Ideally such Id must be another field of
+            --  Foreign__Key_Description instead of computing every time.
+            --  Really keeping the FKs has no effect, see For_Each_FK
+         end Remove_Incomplete_Duplicates_FK;
+
          procedure Cb (From, To : Field; Id : Natural; Ambiguous : Boolean);
          procedure Cb (From, To : Field; Id : Natural; Ambiguous : Boolean) is
-            pragma Unreferenced (Id, Ambiguous);
+            pragma Unreferenced (Ambiguous);
          begin
             if To = No_Field then
-               Put_Line ("Invalid foreign key: "
-                  & From.Get_Table.Name & "." & From.Name
-                  & " references an invalid table or field");
+               Put_Line ("Invalid foreign key (" & Image (Id, 1) & "): "
+                         & From.Get_Table.Name & "." & From.Name
+                         & " references an invalid table or field");
                Has_Errors := True;
             end if;
          end Cb;
@@ -1575,6 +2079,10 @@ package body GNATCOLL.SQL.Inspect is
          end On_Table;
 
       begin
+         --  Dump_FKs (Schema, "(Before Removing Incomplete Duplicates)");
+         For_Each_Table (Schema, Remove_Incomplete_Duplicates_FK'Access);
+         --  Dump_FKs (Schema, "(After Removing Incomplete Duplicates)");
+
          For_Each_Table (Schema, On_Table'Access);
 
          Free (String_List (Line));
@@ -1598,14 +2106,15 @@ package body GNATCOLL.SQL.Inspect is
       when Name_Error =>
          Put_Line ("Could not open " & Self.File.Display_Full_Name);
          return No_Schema;
-   end Read_Schema;
+   end Read_Schema; -- File_Schema_IO
 
    -----------------
    -- Read_Schema --
    -----------------
 
-   overriding function Read_Schema
-     (Self : File_Schema_IO) return DB_Schema
+   overriding function Read_Schema (Self : File_Schema_IO;
+                                    Auto_Data : Boolean := False)
+                                    return DB_Schema
    is
       Str    : GNAT.Strings.String_Access := Self.File.Read_File;
       Schema : DB_Schema;
@@ -1614,7 +2123,7 @@ package body GNATCOLL.SQL.Inspect is
          Put_Line ("File not found: " & Self.File.Display_Full_Name);
          return No_Schema;
       end if;
-      Schema := Read_Schema (Self, Str.all);
+      Schema := Read_Schema (Self, Auto_Data, Str.all);
       Free (Str);
       return Schema;
 
@@ -1622,7 +2131,7 @@ package body GNATCOLL.SQL.Inspect is
       when others =>
          Free (Str);
          raise;
-   end Read_Schema;
+   end Read_Schema; --  File_Schema_IO
 
    ------------------
    -- Write_Schema --
@@ -2165,13 +2674,14 @@ package body GNATCOLL.SQL.Inspect is
       Schema : DB_Schema;
       Puts   : access procedure (S : String);
       Align_Columns : Boolean := True;
+      Auto_Data     : Boolean := True;
       Show_Comments : Boolean := True)
    is
       To_File : File_Type;
       Put : access procedure (S : String) := Puts;
 
       Not_Null : constant String := "NOT NULL";
-      Column_Widths : array (1 .. 4) of Natural;
+      Column_Widths : array (1 .. 5) of Natural;
       --  The maximum width of all columns
 
       function SQL_Type (Attr : Field) return String;
@@ -2215,7 +2725,7 @@ package body GNATCOLL.SQL.Inspect is
                return "AUTOINCREMENT";
             else
                return Attr.Get_Type.Type_To_SQL
-                 (Self.DB, For_Database => True);
+                             (Self.DB, For_Database => True);
             end if;
          else
             return "FK " & Omit_Schema (FK.Get_Table.Name);
@@ -2226,53 +2736,300 @@ package body GNATCOLL.SQL.Inspect is
       -- For_Field --
       ---------------
 
+      function Has_Other_Props (F : Field) return Boolean;
+      function Has_Other_Props (F : Field) return Boolean is
+      begin
+         if F.Get.Props.Indexed then
+            return True;
+         elsif F.Get.Props.Noindex then
+            return True;
+         elsif F.Get.Props.Unique then
+            return True;
+         elsif F.Get.Props.Case_Insensitive then
+            return True;
+         elsif F.Get.Props.Serial then
+            return True;
+         else
+            return False;
+         end if;
+      end Has_Other_Props;
+
       procedure For_Field (F : in out Field) is
          Name    : constant String := F.Name;
          Default : constant String := F.Default;
+         Description : constant String :=
+           Translate (F.Description,
+                      Mapping => To_Mapping ("" & ASCII.LF, " "));
+         Len3 : Integer := 0;
+         Idx  : Integer;
       begin
+         --  column #1
          Put
            ("|" & Name & (1 .. Column_Widths (1) - Name'Length => ' ') & "|");
 
+         --  column #2
          declare
             Typ : constant String := SQL_Type (F);
          begin
-            Put (Typ & (1 .. Column_Widths (2) - Typ'Length => ' ') & "|");
+            if F.Reverse_Relation = null then
+               Put (Typ & (1 .. Column_Widths (2) - Typ'Length => ' ') & "|");
+            else
+               Put (Typ & "(" & F.Reverse_Relation.all & ")" &
+                    (1 .. Column_Widths (2) - Typ'Length -
+                         F.Reverse_Relation.all'Length - 2 => ' ') & "|");
+            end if;
          end;
 
-         if F.Is_PK then
-            Put ("PK");
-         elsif not F.Can_Be_Null then
-            Put (Not_Null);
-         elsif Align_Columns then
-            Put ("NULL");
+         --  column #3
+         if F.Get_Table.Get_Kind = Kind_Table then
+            if Has_Other_Props (F) then
+               if F.Is_PK then
+                  Put ("PK");
+                  Len3 := Len3 + 2;
+               elsif not F.Can_Be_Null then
+                  Put (Not_Null);
+                  Len3 := Len3 + 8;
+               else
+                  Put ("NULL");
+                  Len3 := Len3 + 4;
+               end if;
+            else
+               if F.Is_PK then
+                  Put ("PK");
+                  Len3 := Len3 + 2;
+               elsif not F.Can_Be_Null then
+                  Put (Not_Null);
+                  Len3 := Len3 + 8;
+               else
+                  Put ("NULL");
+                  Len3 := Len3 + 4;
+               end if;
+            end if;
+         else -- view
+            if F.Is_PK then
+               Put ("PK");
+               Len3 := Len3 + 2;
+            elsif not F.Can_Be_Null then
+               Put (Not_Null);
+               Len3 := Len3 + 8;
+            else
+               Put ("NULL");
+               Len3 := Len3 + 4;
+            end if;
+         end if;
+
+         if F.Get.Props.Serial then
+            Put (",SERIAL");
+            Len3 := Len3 + 7;
          end if;
 
          if F.Get.Props.Indexed then
             Put (",INDEX");
+            Len3 := Len3 + 6;
          elsif F.Get.Props.Noindex then
             Put (",NOINDEX");
+            Len3 := Len3 + 8;
          end if;
 
          if F.Get.Props.Unique then
             Put (",UNIQUE");
+            Len3 := Len3 + 7;
          end if;
 
          if F.Get.Props.Case_Insensitive then
             Put (",NOCASE");
+            Len3 := Len3 + 7;
          end if;
 
-         Put
-           ("|" & Default & (1 .. Column_Widths (4) - Default'Length => ' ')
-            & "|");
+         if Align_Columns then
+            Put ((1 .. Column_Widths (3) - Len3 => ' '));
+         end if;
 
+         --  column #4
+         Idx := Index (Default, "::");
+         if Idx in Default'Range then
+            Put
+              ("|" & Default (Default'First .. Idx - 1) &
+               (1 .. Column_Widths (4) -
+                    Default (Default'First .. Idx - 1)'Length => ' ')
+               & "|");
+         else
+            Put
+              ("|" & Default & (1 .. Column_Widths (4) - Default'Length => ' ')
+               & "|");
+         end if;
+
+         --  column #5
          if Show_Comments then
             Put
-              (Translate (F.Description,
-               Mapping => To_Mapping ("" & ASCII.LF, " ")) & "|" & ASCII.LF);
-         else
-            Put ("" & ASCII.LF);
+              (Description &
+               (1 .. Column_Widths (5) - Description'Length => ' '));
          end if;
+         Put ("|" & ASCII.LF);
       end For_Field;
+
+      ----------------------------
+      -- Raw_Row_Name --
+      ----------------------------
+      function Raw_Row_Name (Self : Table_Description) return String;
+      function Raw_Row_Name (Self : Table_Description) return String is
+         Row : constant GNAT.Strings.String_Access :=
+           TDR (Self.Unchecked_Get).Row;
+      begin
+         if Row = null then
+            return "";
+         else
+            return Row.all;
+         end if;
+      end Raw_Row_Name;
+
+      ----------------------------
+      -- Compute_Columns_Widths --
+      ----------------------------
+
+      procedure Compute_Columns_Width (T : in out Table_Description);
+      procedure Compute_Columns_Width (T : in out Table_Description) is
+         Idx : Integer;
+         TName : constant String := Omit_Schema (T.Name);
+         RName : constant String := Omit_Schema (Raw_Row_Name (T));
+         Description : constant String :=
+           Translate (T.Description,
+                      Mapping => To_Mapping ("" & ASCII.LF, " "));
+
+         procedure Compute_Column_3_And_5_Width (F : in out Field);
+         procedure Compute_Column_3_And_5_Width (F : in out Field) is
+            Props_Len : Integer := 0;
+            Description : constant String :=
+              Translate (F.Description,
+                         Mapping => To_Mapping ("" & ASCII.LF, " "));
+         begin
+            if F.Get_Table.Get_Kind = Kind_Table then
+               if Has_Other_Props (F) then
+                  if F.Is_PK then
+                     Props_Len := 2;
+                     --  Put ("PK");
+                  elsif not F.Can_Be_Null then
+                     Props_Len := 8;
+                     --  Put (Not_Null);
+                  else
+                     Props_Len := 4;
+                     --  Put ("NULL");
+                  end if;
+               else
+                  if F.Is_PK then
+                     Props_Len := 2;
+                     --  Put ("PK");
+                  elsif not F.Can_Be_Null then
+                     Props_Len := 8;
+                     --  Put (Not_Null);
+                  else
+                     Props_Len := 4;
+                     --  Put ("NULL");
+                  end if;
+               end if;
+            else -- view
+               if F.Is_PK then
+                  Props_Len := 2;
+                  --  Put ("PK");
+               elsif not F.Can_Be_Null then
+                  Props_Len := 8;
+                  --  Put (Not_Null);
+               else
+                  Props_Len := 4;
+                  --  Put ("NULL");
+               end if;
+            end if;
+
+            if F.Get.Props.Indexed then
+               Props_Len := Props_Len + 6;
+               --  Put (",INDEX");
+            elsif F.Get.Props.Noindex then
+               Props_Len := Props_Len + 8;
+               --  Put (",NOINDEX");
+            end if;
+
+            if F.Get.Props.Unique then
+               Props_Len := Props_Len + 7;
+               --  Put (",UNIQUE");
+            end if;
+
+            if F.Get.Props.Case_Insensitive then
+               Props_Len := Props_Len + 7;
+               --  Put (",NOCASE");
+            end if;
+
+            if F.Get.Props.Serial then
+               Props_Len := Props_Len + 7;
+               --  Put (",SERIAL");
+            end if;
+
+            Column_Widths (3) := Integer'Max (Column_Widths (3), Props_Len);
+            Column_Widths (5) := Integer'Max (Column_Widths (5),
+                                              Description'Length);
+         end Compute_Column_3_And_5_Width;
+
+      begin --  Compute_Columns_Width
+         Column_Widths (2) := Integer'Max (Column_Widths (2), TName'Length);
+
+         case T.Get_Kind is
+            when Kind_Table =>
+               if RName /= "" then
+                  Column_Widths (3) := Integer'Max (Column_Widths (3),
+                                                    RName'Length);
+               elsif Auto_Data and then
+                 TName (TName'Last) = 's'
+                 and then TName'Last > 1
+               then
+                  Column_Widths (3) := Integer'Max (Column_Widths (3),
+                                                    TName'Length - 1);
+               else
+                  Column_Widths (3) := Integer'Max (Column_Widths (3),
+                                                    TName'Length);
+               end if;
+            when Kind_View  =>
+               if RName /= "" then
+                  Column_Widths (3) := Integer'Max (Column_Widths (3),
+                                                    RName'Length);
+               elsif Auto_Data and then TName'Length > 6 -- "s_view"
+                 and then
+                   TName (TName'Last - 6 .. TName'Last) = "s_view"
+               then
+                  Column_Widths (3) := Integer'Max (Column_Widths (3),
+                                                    TName'Length - 6);
+               else
+                  Column_Widths (3) := Integer'Max (Column_Widths (3),
+                                                    TName'Length);
+               end if;
+         end case;
+
+         for A of TDR (T.Unchecked_Get).Fields loop
+            Column_Widths (1) := Integer'Max (Column_Widths (1),
+                                              A.Name'Length);
+            if A.Reverse_Relation = null then
+               Column_Widths (2) := Integer'Max (Column_Widths (2),
+                                                 SQL_Type (A)'Length);
+            else
+               Column_Widths (2) := Integer'Max
+                 (Column_Widths (2),
+                  SQL_Type (A)'Length + A.Reverse_Relation.all'Length + 2);
+            end if;
+
+
+            Idx := Index (A.Default, "::");
+            if Idx in A.Default'Range then
+               Column_Widths (4) :=
+                 Integer'Max (Column_Widths (4),
+                              A.Default (A.Default'First .. Idx)'Length);
+            else
+               Column_Widths (4) := Integer'Max (Column_Widths (4),
+                                                 A.Default'Length);
+            end if;
+            Column_Widths (5) := Integer'Max (Column_Widths (5),
+                                              Description'Length);
+         end loop;
+
+         For_Each_Field (T, Compute_Column_3_And_5_Width'Access, True);
+      end Compute_Columns_Width;
 
       ---------------
       -- For_Table --
@@ -2281,11 +3038,11 @@ package body GNATCOLL.SQL.Inspect is
       procedure For_Table (Table : in out Table_Description) is
          P  : Pair_Lists.Cursor;
 
-         procedure Write_Index (Prefix : String; List : String_Lists.Vector);
-
          -----------------
          -- Write_Index --
          -----------------
+
+         procedure Write_Index (Prefix : String; List : String_Lists.Vector);
 
          procedure Write_Index (Prefix : String; List : String_Lists.Vector) is
             Name_Start : Positive;
@@ -2300,58 +3057,106 @@ package body GNATCOLL.SQL.Inspect is
             end loop;
          end Write_Index;
 
-         Table_Name : constant String := Omit_Schema (Table.Name);
-
+         Table_Name  : constant String := Omit_Schema (Table.Name);
+         Table_Row   : constant String := Omit_Schema (Raw_Row_Name (Table));
+         FK_Len      : Integer;
+         Description : constant String :=
+           Translate (Table.Description,
+                       Mapping => To_Mapping ("" & ASCII.LF, " "));
       begin
-         --  Compute widths
-         --  Minimum size of column 1 is 5 (for "TABLE")
-         if Align_Columns then
-            Column_Widths := (1 => 5, 2 => 0, 3 => Not_Null'Length, 4 => 0);
-            for A of TDR (Table.Unchecked_Get).Fields loop
-               Column_Widths (1) := Integer'Max
-                 (Column_Widths (1), A.Name'Length);
-               Column_Widths (2) := Integer'Max
-                 (Column_Widths (2), SQL_Type (A)'Length);
-               Column_Widths (4) := Integer'Max
-                 (Column_Widths (4), A.Default'Length);
-            end loop;
-
-         else
-            Column_Widths := (others => 0);
-         end if;
-
          case Table.Get_Kind is
             when Kind_Table =>
-               Put
-                 ("|TABLE" & (1 .. Column_Widths (1) - 5 => ' ')
-                  & "| " & Table_Name & ASCII.LF);
+               --  column #1
+               Put ("|TABLE" & (1 .. Column_Widths (1) - 5 => ' '));
+               --  column #2
+               Put ("|" & Table_Name &
+                    (1 .. Column_Widths (2) - Table_Name'Length => ' '));
+               --  column #3
+               if Table_Row /= "" then
+                  Put ("|" & Table_Row &
+                       (1 .. Column_Widths (3) - Table_Row'Length => ' '));
+               elsif Auto_Data and then
+                 Table_Name (Table_Name'Last) = 's' and then
+                 Table_Name'Last > 1
+               then
+                  Put ("|" &
+                         Table_Name (Table_Name'First .. Table_Name'Last - 1)
+                       & (1 .. Column_Widths (3) -
+                         (Table_Name'Length - 1) => ' '));
+               else
+                  Put ("|" & (1 .. Column_Widths (3) => ' '));
+               end if;
+               --  column #4
+               Put ("|" & (1 .. Column_Widths (4) => ' '));
+               --  column #5
+               if Show_Comments then
+                  Put ("|" & Description &
+                       (1 .. Column_Widths (5) - Description'Length => ' '));
+               end if;
+               Put ("|" & ASCII.LF);
             when Kind_View  =>
-               Put
-                 ("|VIEW" & (1 .. Column_Widths (1) - 4 => ' ')
-                  & "| " & Table_Name & ASCII.LF);
+               --  column #1
+               Put ("|VIEW" & (1 .. Column_Widths (1) - 4 => ' '));
+               --  column #2
+               Put ("|" & Table_Name &
+                    (1 .. Column_Widths (2) - Table_Name'Length => ' '));
+               --  column #3
+               if Table_Row /= "" then
+                  Put ("|" & Table_Row &
+                       (1 .. Column_Widths (3) - Table_Row'Length => ' '));
+               elsif Auto_Data and then
+                 Table_Name'Length > 6 and then -- "s_view"'length=6
+                 Table_Name (Table_Name'Last - 5 ..
+                               Table_Name'Last) = "s_view"
+               then
+                  Put ("|" &
+                         Table_Name (Table_Name'First .. Table_Name'Last - 6) &
+                         "_view" &
+                       (1 .. Column_Widths (3) -
+                          (Table_Name'Length - 1) => ' '));
+               else
+                  Put ("|" & (1 .. Column_Widths (3) => ' '));
+               end if;
+               --  column #4
+               Put ("|" & (1 .. Column_Widths (4) => ' '));
+               --  column #5
+               if Show_Comments then
+                  Put ("|" & Description &
+                       (1 .. Column_Widths (5) - Description'Length => ' '));
+               end if;
+               Put ("|" & ASCII.LF);
          end case;
 
          For_Each_Field (Table, For_Field'Access, True);
 
          for FK of TDR (Table.Unchecked_Get).FK loop
             if Length (FK.Get.Fields) > 1 then
-               Put ("| FK: | " & Omit_Schema (FK.To_Table.Name) & " | ");
+               Put ("| FK: " & (1 .. Column_Widths (1) - 5 => ' '));
+               Put ("|" & Omit_Schema (FK.To_Table.Name) &
+                    (1 .. Column_Widths (2) -
+                         Omit_Schema (FK.To_Table.Name)'Length => ' '));
 
+               Put ("|");
                P := FK.Get.Fields.First;
+               FK_Len := 0;
                while Has_Element (P) loop
+                  FK_Len := FK_Len + Element (P).From.Name'Length + 1;
                   Put (Element (P).From.Name & " ");
                   Next (P);
                end loop;
+               Put ((1 .. Column_Widths (3) - FK_Len => ' '));
 
-               Put (" | ");
-
+               Put ("|");
+               FK_Len := 0;
                P := FK.Get.Fields.First;
                while Has_Element (P) loop
+                  FK_Len := FK_Len + Element (P).To.Name'Length + 1;
                   Put (Element (P).To.Name & " ");
                   Next (P);
                end loop;
+               Put ((1 .. Column_Widths (4) - FK_Len => ' '));
 
-               Put (" |" & ASCII.LF);
+               Put ("|" & ASCII.LF);
             end if;
          end loop;
 
@@ -2368,6 +3173,18 @@ package body GNATCOLL.SQL.Inspect is
          Put := Ada.Text_IO.Put'Access;
       end if;
 
+      --  Compute widths
+      --  Minimum size of column 1 is 5 (for "TABLE")
+      if Align_Columns then
+         Column_Widths := (1 => 5, 2 => 0, 3 => Not_Null'Length,
+                           4 => 0, 5 => 0);
+         For_Each_Table (Schema, Compute_Columns_Width'Access, False);
+      else
+         Column_Widths := (others => 0);
+         return;
+      end if;
+
+      --  output
       For_Each_Table (Schema, For_Table'Access, Alphabetical => False);
 
       if Self.File /= No_File then
@@ -3411,4 +4228,6 @@ begin
    Register_Field_Mapping (Field_Mapping_Timestamp'(null record));
    Register_Field_Mapping (Field_Mapping_Float'(null record));
    Register_Field_Mapping (Field_Mapping_Money'(null record));
+   Register_Field_Mapping (Field_Mapping_Numeric_24_8'(null record));
+   Register_Field_Mapping (Field_Mapping_Numeric_8_4'(null record));
 end GNATCOLL.SQL.Inspect;

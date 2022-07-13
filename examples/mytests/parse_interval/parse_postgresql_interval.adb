@@ -1,137 +1,12 @@
-------------------------------------------------------------------------------
---                             G N A T C O L L                              --
---                                                                          --
---                     Copyright (C) 2005-2020, AdaCore                     --
---                                                                          --
--- This library is free software;  you can redistribute it and/or modify it --
--- under terms of the  GNU General Public License  as published by the Free --
--- Software  Foundation;  either version 3,  or (at your  option) any later --
--- version. This library is distributed in the hope that it will be useful, --
--- but WITHOUT ANY WARRANTY;  without even the implied warranty of MERCHAN- --
--- TABILITY or FITNESS FOR A PARTICULAR PURPOSE.                            --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
---                                                                          --
-------------------------------------------------------------------------------
-
---  This package declares various types and subprograms that must be overridden
---  by anyone wishing to add new backends to GNATCOLL.SQL.Exec.
---  Most users can ignore the contents of this package altogether, since none
---  of these types is intended to be visible in the user's code. They are
---  wrapped up in other types in GNATCOLL.SQL.Exec, which is the actual user
---  API.
-
-with Ada.Strings.Fixed;     use Ada.Strings.Fixed;
+with Ada.Text_IO;           use Ada.Text_IO;
 with Ada.Calendar;          use Ada.Calendar;
+with Ada.Strings.Fixed;     use Ada.Strings.Fixed;
 with Ada.Strings.Maps;      use Ada.Strings.Maps;
 with GNATCOLL.Utils;        use GNATCOLL.Utils;
 
-package body GNATCOLL.SQL.Exec_Private is
-
-   function Class_Value
-     (Self : DBMS_Forward_Cursor'Class; Field : Field_Index) return String
-   is (Value (Self, Field)) with Inline_Always;
-
-   generic
-      type Base_Type is digits <>;
-   function Any_Float_Value (S : String) return Base_Type;
-
-   -----------
-   -- Value --
-   -----------
-
-   function Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return String is
-   begin
-      return Value (C_Value (DBMS_Forward_Cursor'Class (Self), Field));
-   end Value;
-
-   ---------------------
-   -- Unbounded_Value --
-   ---------------------
-
-   function Unbounded_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Unbounded_String is
-   begin
-      return To_Unbounded_String (Self.Class_Value (Field));
-   end Unbounded_Value;
-
-   -------------------
-   -- XString_Value --
-   -------------------
-
-   function XString_Value
-     (Self : DBMS_Forward_Cursor; Field : Field_Index) return XString is
-   begin
-      return To_XString (Self.Class_Value (Field));
-   end XString_Value;
-
-   -------------------
-   -- Boolean_Value --
-   -------------------
-
-   function Boolean_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Boolean is
-   begin
-      return Boolean'Value (Self.Class_Value (Field));
-   end Boolean_Value;
-
-   -------------------
-   -- Smallint_Value --
-   -------------------
-
-   function Smallint_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Short_Integer is
-   begin
-      return Short_Integer'Value (Self.Class_Value (Field));
-   end Smallint_Value;
-
-   -------------------
-   -- Integer_Value --
-   -------------------
-
-   function Integer_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Integer is
-   begin
-      return Integer'Value (Self.Class_Value (Field));
-   end Integer_Value;
-
-   ------------------
-   -- Bigint_Value --
-   ------------------
-
-   function Bigint_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Long_Long_Integer is
-   begin
-      return Long_Long_Integer'Value (Self.Class_Value (Field));
-   end Bigint_Value;
-
-   ------------------
-   -- Interval_Value --
-   ------------------
-   function Parse_Postgresql_Interval (Str : String) return Duration;
-   function Parse_Postgresql_Interval (Str : String) return Duration is
+procedure Parse_Postgresql_Interval is
+   function Main (Str : String) return Duration is
       Incorrect_Interval_String : exception;
-      --  Str : String := "0 years 0 mons 1 days 01:01:1.5 "; -- postgres
-      --  Str : String := "@ 0 years 0 mons 1 days 1 hours 1 mins 1.5 sec";
-      --  verbose
-      --  Str : String := "P1DT1H1M1.5S"; -- iso8601
-      --  Str : String := "P00000001T010101.5"; -- iso8601_basic
-      --  Str : String := "P0000-00-01T01:01:01.5"; -- iso8601_extended
-      --  Str : String := "+0-0 +1 +1:1:1.5"; -- sql standard
       YY_Idx, MM_Idx, DD_Idx : Natural;
       HH_Idx, MI_Idx, SS_Idx : Natural;
       T_Idx : Natural;
@@ -164,9 +39,9 @@ package body GNATCOLL.SQL.Exec_Private is
 
       procedure Parse_ISO8601;
       procedure Parse_ISO8601 is
-         CSet : constant Character_Set := To_Set ("YMDHS");
+         CSet : Character_Set := To_Set ("YMDHS");
       begin
-         if not (Index (Str, CSet) in Str'Range) then
+         if not (Index (Str, Cset) in Str'Range) then
             Parse_ISO8601_Basic;
             return;
          end if;
@@ -372,13 +247,14 @@ package body GNATCOLL.SQL.Exec_Private is
          if Index (Str (SS_Idx .. Str'Last), "ago") in Str'Range then
             YY := -YY;
          end if;
+
       end Parse_Postgres_Verbose;
 
       procedure Parse_Postgres_Style;
       procedure Parse_Postgres_Style is
-         CSet : constant Character_Set := To_Set ("ymd");
+         CSet : Character_Set := To_Set ("ymd");
       begin
-         if not (Index (Str, CSet) in Str'Range) then
+         if not (Index (Str, Cset) in Str'Range) then
             Parse_SQL_Standard;
             return;
          end if;
@@ -427,7 +303,7 @@ package body GNATCOLL.SQL.Exec_Private is
       end Parse_Postgres_Style;
 
    begin
-      --  parse
+      -- parse
       if Str (Str'First) = 'P' then
          if Index (Str, "-") in Str'Range or else Index (Str, ":") in Str'Range
          then
@@ -441,7 +317,7 @@ package body GNATCOLL.SQL.Exec_Private is
          Parse_Postgres_Style; -- may call Parse_Sql_Standard
       end if;
 
-      --  adjust overflows
+      -- adjust overflows
       while SS >= 60.0 loop
          SS := SS - 60.0;
          MI := MI + 1;
@@ -463,7 +339,7 @@ package body GNATCOLL.SQL.Exec_Private is
          YY := YY + 1;
       end loop;
 
-      --  adjust underflows
+      -- adjust underflows
       while SS < 0.0 loop
          MI := MI - 1;
          SS := 60.0 + SS;
@@ -485,7 +361,7 @@ package body GNATCOLL.SQL.Exec_Private is
          MM := 12 + MM;
       end loop;
 
-      --  compute Ada Duration
+      -- compute Ada Duration
       Result := Duration (365.0) * YY +
                 Duration (30.0) * MM +
                 Duration (1.0) * DD;            -- total days
@@ -494,181 +370,21 @@ package body GNATCOLL.SQL.Exec_Private is
       Result := Result * 60.0 +
                 Duration (1.0) * MI;            -- total minutes
       Result := Result * 60.0 + SS;             -- total seconds
-
       return Result;
-   end Parse_Postgresql_Interval;
+   end Main;
 
-   function Interval_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Duration is
-
-      Str    : constant String := Self.Class_Value (Field);
+   procedure Test (Str : String) is
       Result : Duration;
    begin
-      Result := Parse_Postgresql_Interval (Str);
-      return Result;
---      return Duration'Value (Self.Class_Value (Field));
-   end Interval_Value;
-
-   ---------------------
-   -- Any_Float_Value --
-   ---------------------
-
-   function Any_Float_Value (S : String) return Base_Type is
-      pragma Warnings (Off, "*is not modified, could be declared constant");
-      Zero : Base_Type := 0.0;
-      pragma Warnings (On, "*is not modified, could be declared constant");
-   begin
-      if S = "NaN" then
-         return 0.0 / Zero;
-      elsif S = "-Infinity" then
-         return -1.0 / Zero;
-      elsif S = "Infinity" then
-         return 1.0 / Zero;
-      else
-         return Base_Type'Value (S);
-      end if;
-   end Any_Float_Value;
-
-   -----------------
-   -- Real_Value --
-   -----------------
-
-   function Real_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Float
-   is
-      function To_Float is new Any_Float_Value (Float);
-   begin
-      return To_Float (Self.Class_Value (Field));
-   end Real_Value;
-
-   -----------------
-   -- Float_Value --
-   -----------------
-
-   function Float_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Float
-   is
-      function To_Float is new Any_Float_Value (Float);
-   begin
-      return To_Float (Self.Class_Value (Field));
-   end Float_Value;
-
-   ----------------------------
-   -- Double_Precision_Value --
-   ----------------------------
-
-   function Double_Precision_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Long_Float
-   is
-      function To_Long_Float is new Any_Float_Value (Long_Float);
-   begin
-      return To_Long_Float (Self.Class_Value (Field));
-   end Double_Precision_Value;
-
-   ----------------------
-   -- Long_Float_Value --
-   ----------------------
-
-   function Long_Float_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Long_Float
-   is
-      function To_Long_Float is new Any_Float_Value (Long_Float);
-   begin
-      return To_Long_Float (Self.Class_Value (Field));
-   end Long_Float_Value;
-
-   -----------------
-   -- Money_Value --
-   -----------------
-
-   function Money_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return T_Money
-   is
-      Temp : String := Self.Class_Value (Field);
-      Idx  : Natural;
-      Euro : constant String := Character'Val (16#E2#) &
-        Character'Val (16#82#) &
-        Character'Val (16#AC#);
-   begin
-      --      return T_Money'Value (Self.Class_Value (Field));
-      --  check $
-      Idx := Index (Temp, "$");
-      if Idx in Temp'Range then
-         Temp (Idx) := ' ';
-         --  remove the possible commas
-         for I in Temp'Range loop
-            if Temp (I) = ',' then
-               Delete (Temp, I, I + 1, Ada.Strings.Left, ' ');
-            end if;
-         end loop;
-         return T_Money'Value (Trim (Temp, Ada.Strings.Both));
-      end if;
-      --  check euro
-      Idx := Index (Temp, Euro);
-      if Idx in Temp'First .. Temp'Last - 2 then
-         Temp (Idx .. Idx + 2) := "   ";
-         --  remove the possible dots
-         for I in Temp'Range loop
-            if Temp (I) = '.' then
-               Delete (Temp, I, I + 1, Ada.Strings.Left, ' ');
-            end if;
-         end loop;
-         --  replace the last comma by a dot
-         Idx := Index (Source  => Temp,
-                       Pattern => ",",
-                       From    => Temp'Last,
-                       Going   => Ada.Strings.Backward);
-         if Idx in Temp'Range then
-            Temp (Idx) := '.';
-         end if;
-      end if;
-      return T_Money'Value (Trim (Temp, Ada.Strings.Both));
-   end Money_Value;
-
-   function Numeric_24_8_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return T_Numeric_24_8
-   is
-   begin
-      return T_Numeric_24_8'Value (Self.Class_Value (Field));
-   end Numeric_24_8_Value;
-
-   function Numeric_8_4_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return T_Numeric_8_4
-   is
-   begin
-      return T_Numeric_8_4'Value (Self.Class_Value (Field));
-   end Numeric_8_4_Value;
-
-   ----------------
-   -- Time_Value --
-   ----------------
-
-   function Time_Value
-     (Self  : DBMS_Forward_Cursor;
-      Field : Field_Index) return Ada.Calendar.Time
-   is
-      Val : constant String := Self.Class_Value (Field);
-   begin
-      if Val = "" then
-         return No_Time;
-      else
-         --  Workaround bug(?) in GNAT.Calendar.Time_IO: if there is no time,
-         --  set one to avoid daylight saving time issues
-
-         if Ada.Strings.Fixed.Index (Val, ":") < Val'First then
-            return GNATCOLL.Utils.Time_Value (Val & " 12:00:00");
-         else
-            return GNATCOLL.Utils.Time_Value (Val);
-         end if;
-      end if;
-   end Time_Value;
-
-end GNATCOLL.SQL.Exec_Private;
+      Result := Main (str);
+      Put_Line (Str'Image & "*"(60 - Str'Length, ' ') & Result'Image);
+   end Test;
+begin
+   Test ("0 years 0 mons 1 days 01:01:1.5 ");               -- postgres
+   Test ("@ 0 years 0 mons 1 days 1 hours 1 mins 1.5 sec"); -- verbose
+   Test ("P1DT1H1M1.5S");                                   -- iso8601
+   Test ("P00000001T010101.5");                             -- iso8601_basic
+   Test ("P0000-00-01T01:01:01.5");                         -- iso8601_extended
+   Test ("+0-0 +1 +1:1:1.5");                               -- sql standard
+   Test ("120.34");
+end Parse_Postgresql_Interval;

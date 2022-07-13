@@ -56,6 +56,15 @@ package GNATCOLL.SQL_Impl is
    type T_Money is delta K_Delta digits K_Digits;
    --  The base type to represent money in a database. The exact mapping
    --  depends on the DBMS (for postgreSQL, this is "numeric(14,2)").
+   N24_8_Delta : constant := 0.0000_0001;
+   N24_8_Decimals : constant := 8;
+   N24_8_Digits : constant := 24;
+   type T_Numeric_24_8 is delta N24_8_Delta digits N24_8_Digits;
+
+   N8_4_Delta : constant := 0.0001;
+   N8_4_Decimals : constant := 4;
+   N8_4_Digits : constant := 8;
+   type T_Numeric_8_4 is delta N8_4_Delta digits N8_4_Digits;
 
    ---------------
    -- Formatter --
@@ -68,6 +77,10 @@ package GNATCOLL.SQL_Impl is
 
    function Boolean_Image (Self : Formatter; Value : Boolean) return String;
    function Money_Image (Self : Formatter; Value : T_Money) return String;
+   function Numeric_24_8_Image (Self : Formatter; Value : T_Numeric_24_8)
+                                return String;
+   function Numeric_8_4_Image (Self : Formatter; Value : T_Numeric_8_4)
+                               return String;
    --  Return an image of the various basic types suitable for the DBMS.
    --  For instance, sqlite does not support boolean fields, which are thus
    --  mapped to integers at the lowest level, even though the Ada layer still
@@ -96,6 +109,10 @@ package GNATCOLL.SQL_Impl is
    function Field_Type_Money
      (Self : Formatter) return String is abstract;
    --  Return the SQL type to use for money fields depending on DBMS
+   function Field_Type_Numeric_24_8
+     (Self : Formatter) return String is abstract;
+   function Field_Type_Numeric_8_4
+     (Self : Formatter) return String is abstract;
 
    function Supports_Timezone (Self  : Formatter) return Boolean;
    --  Whether the formatter supports time zones for times. Default is True.
@@ -117,11 +134,25 @@ package GNATCOLL.SQL_Impl is
 
    function Boolean_To_SQL
      (Self : Formatter'Class; Value : Boolean; Quote : Boolean) return String;
+   function Smallint_To_SQL
+     (Self : Formatter'Class;
+      Value : Short_Integer;
+      Quote : Boolean) return String;
+   function Real_To_SQL
+     (Self : Formatter'Class; Value : Float; Quote : Boolean) return String;
    function Integer_To_SQL
      (Self : Formatter'Class; Value : Integer; Quote : Boolean) return String;
    function Bigint_To_SQL
      (Self  : Formatter'Class;
       Value : Long_Long_Integer;
+      Quote : Boolean) return String;
+   function Interval_To_SQL
+     (Self  : Formatter'Class;
+      Value : Duration;
+      Quote : Boolean) return String;
+   function Double_Precision_To_SQL
+     (Self  : Formatter'Class;
+      Value : Long_Float;
       Quote : Boolean) return String;
    function String_To_SQL
      (Self : Formatter'Class; Value : String; Quote : Boolean) return String;
@@ -133,6 +164,12 @@ package GNATCOLL.SQL_Impl is
       return String;
    function Money_To_SQL
      (Self : Formatter'Class; Value : T_Money; Quote : Boolean) return String;
+   function Numeric_24_8_To_SQL
+     (Self : Formatter'Class; Value : T_Numeric_24_8; Quote : Boolean)
+      return String;
+   function Numeric_8_4_To_SQL
+     (Self : Formatter'Class; Value : T_Numeric_8_4; Quote : Boolean)
+      return String;
    --  Calls the above formatting primitives (or provide default version, when
    --  not overridable)
    --  If Quote is False, these functions provide quotes around the values. For

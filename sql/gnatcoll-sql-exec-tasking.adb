@@ -143,6 +143,14 @@ package body GNATCOLL.SQL.Exec.Tasking is
      (Self       : Task_Cursor;
       Connection : access Database_Connection_Record'Class;
       Field      : SQL_Field_Integer) return Integer;
+   overriding function Last_Id
+     (Self       : Task_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Smallint) return Short_Integer;
+   overriding function Last_Id
+     (Self       : Task_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Bigint) return Long_Long_Integer;
 
    overriding procedure First (Self : in out Task_Cursor);
    overriding procedure Last (Self : in out Task_Cursor);
@@ -206,6 +214,30 @@ package body GNATCOLL.SQL.Exec.Tasking is
      (Self       : Task_Cursor;
       Connection : access Database_Connection_Record'Class;
       Field      : SQL_Field_Integer) return Integer
+   is
+      pragma Unreferenced (Self, Field);
+   begin
+      raise Program_Error with
+        "Task safe cursors is not supported for insert statements";
+      return 0;
+   end Last_Id;
+
+   overriding function Last_Id
+     (Self       : Task_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Smallint) return Short_Integer
+   is
+      pragma Unreferenced (Self, Field);
+   begin
+      raise Program_Error with
+        "Task safe cursors is not supported for insert statements";
+      return 0;
+   end Last_Id;
+
+   overriding function Last_Id
+     (Self       : Task_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Bigint) return Long_Long_Integer
    is
       pragma Unreferenced (Self, Field);
    begin

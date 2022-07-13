@@ -234,6 +234,17 @@ package GNATCOLL.SQL is
    --  Specify a specific sort order. This is only used in the Order_By clause
    --  of a Select statement
 
+   package Smallint_Parameters is new Scalar_Parameters
+      (Short_Integer, "Smallint", Smallint_To_SQL);
+   subtype SQL_Parameter_Smallint is Smallint_Parameters.SQL_Parameter;
+   package Smallint_Fields is new Field_Types
+     (Short_Integer, Smallint_To_SQL, SQL_Parameter_Smallint);
+   type SQL_Field_Smallint is new Smallint_Fields.Field with null record;
+   Null_Field_Smallint : constant SQL_Field_Smallint;
+   function Smallint_Param (Index : Positive)
+                            return Smallint_Fields.Field'Class
+                           renames Smallint_Fields.Param;
+
    package Integer_Parameters is new Scalar_Parameters
       (Integer, "integer", Integer_To_SQL);
    subtype SQL_Parameter_Integer is Integer_Parameters.SQL_Parameter;
@@ -241,7 +252,8 @@ package GNATCOLL.SQL is
      (Integer, Integer_To_SQL, SQL_Parameter_Integer);
    type SQL_Field_Integer is new Integer_Fields.Field with null record;
    Null_Field_Integer : constant SQL_Field_Integer;
-   function Integer_Param (Index : Positive) return Integer_Fields.Field'Class
+   function Integer_Param (Index : Positive)
+                           return Integer_Fields.Field'Class
                            renames Integer_Fields.Param;
 
    package Bigint_Parameters is new Scalar_Parameters
@@ -253,6 +265,17 @@ package GNATCOLL.SQL is
    Null_Field_Bigint : constant SQL_Field_Bigint;
    function Bigint_Param (Index : Positive) return Bigint_Fields.Field'Class
                            renames Bigint_Fields.Param;
+
+   package Interval_Parameters is new Scalar_Parameters
+      (Duration, "interval", Interval_To_SQL);
+   subtype SQL_Parameter_Interval is Interval_Parameters.SQL_Parameter;
+   package Interval_Fields is new Field_Types
+     (Duration, Interval_To_SQL, SQL_Parameter_Interval);
+   type SQL_Field_Interval is new Interval_Fields.Field with null record;
+   Null_Field_Interval : constant SQL_Field_Interval;
+   function Interval_Param (Index : Positive)
+                            return Interval_Fields.Field'Class
+                         renames Interval_Fields.Param;
 
    package Text_Fields is new Field_Types
      (String, String_To_SQL, SQL_Parameter_Text);
@@ -294,7 +317,34 @@ package GNATCOLL.SQL is
      (Index : Positive) return Long_Float_Fields.Field'Class
       renames Long_Float_Fields.Param;
 
+   function Double_Precision_To_SQL is new Any_Float_To_SQL (Long_Float);
+   package Double_Precision_Parameters is new Scalar_Parameters
+      (Long_Float, "double precision", Double_Precision_To_SQL);
+   subtype SQL_Parameter_Double_Precision is
+     Double_Precision_Parameters.SQL_Parameter;
+   package Double_Precision_Fields is new Field_Types
+     (Long_Float, Double_Precision_To_SQL, SQL_Parameter_Double_Precision);
+   type SQL_Field_Double_Precision is
+     new Double_Precision_Fields.Field with null record;
+   Null_Field_Double_Precision : constant SQL_Field_Double_Precision;
+   function Double_Precision_Param
+     (Index : Positive) return Double_Precision_Fields.Field'Class
+      renames Double_Precision_Fields.Param;
+
+   function Real_To_SQL is new Any_Float_To_SQL (Float);
+   package Real_Parameters is new Scalar_Parameters
+      (Float, "real", Real_To_SQL);
+   subtype SQL_Parameter_Real is Real_Parameters.SQL_Parameter;
+   package Real_Fields is new Field_Types
+     (Float, Real_To_SQL, SQL_Parameter_Real);
+   type SQL_Field_Real is new Real_Fields.Field with null record;
+   Null_Field_Real : constant SQL_Field_Real;
+   function Real_Param
+     (Index : Positive) return Real_Fields.Field'Class
+      renames Real_Fields.Param;
+
    subtype T_Money is GNATCOLL.SQL_Impl.T_Money;
+   function "-" (T : T_Money) return T_Money renames SQL_Impl."-";
    function "=" (T1, T2 : T_Money) return Boolean renames SQL_Impl."=";
    function "+" (T1, T2 : T_Money) return T_Money renames SQL_Impl."+";
    function "-" (T1, T2 : T_Money) return T_Money renames SQL_Impl."-";
@@ -314,6 +364,61 @@ package GNATCOLL.SQL is
    Null_Field_Money : constant SQL_Field_Money;
    function Money_Param (Index : Positive) return Money_Fields.Field'Class
                          renames Money_Fields.Param;
+
+   subtype T_Numeric_24_8 is GNATCOLL.SQL_Impl.T_Numeric_24_8;
+   function "-" (T : T_Numeric_24_8) return T_Numeric_24_8
+                 renames SQL_Impl."-";
+   function "=" (T1, T2 : T_Numeric_24_8) return Boolean renames SQL_Impl."=";
+   function "+" (T1, T2 : T_Numeric_24_8) return T_Numeric_24_8
+                 renames SQL_Impl."+";
+   function "-" (T1, T2 : T_Numeric_24_8) return T_Numeric_24_8
+                 renames SQL_Impl."-";
+   function "<" (T1, T2 : T_Numeric_24_8) return Boolean renames SQL_Impl."<";
+   function "<=" (T1, T2 : T_Numeric_24_8) return Boolean
+                  renames SQL_Impl."<=";
+   function ">" (T1, T2 : T_Numeric_24_8) return Boolean renames SQL_Impl.">";
+   function ">=" (T1, T2 : T_Numeric_24_8) return Boolean
+                  renames SQL_Impl.">=";
+   --  Make this type visible here, so that users do not have to explicitly
+   --  'with' GNATCOLL.SQL_Impl.
+
+   package Numeric_24_8_Parameters is new Scalar_Parameters
+      (T_Numeric_24_8, "numeric (24, 8)", Numeric_24_8_To_SQL);
+   subtype SQL_Parameter_Numeric_24_8 is Numeric_24_8_Parameters.SQL_Parameter;
+   package Numeric_24_8_Fields is new Field_Types
+     (T_Numeric_24_8, Numeric_24_8_To_SQL, SQL_Parameter_Numeric_24_8);
+   type SQL_Field_Numeric_24_8 is new Numeric_24_8_Fields.Field with
+     null record;
+   Null_Field_Numeric_24_8 : constant SQL_Field_Numeric_24_8;
+   function Numeric_24_8_Param (Index : Positive)
+                                return Numeric_24_8_Fields.Field'Class
+                         renames Numeric_24_8_Fields.Param;
+
+   subtype T_Numeric_8_4 is GNATCOLL.SQL_Impl.T_Numeric_8_4;
+   function "-" (T : T_Numeric_8_4) return T_Numeric_8_4 renames SQL_Impl."-";
+   function "=" (T1, T2 : T_Numeric_8_4) return Boolean renames SQL_Impl."=";
+   function "+" (T1, T2 : T_Numeric_8_4) return T_Numeric_8_4
+                 renames SQL_Impl."+";
+   function "-" (T1, T2 : T_Numeric_8_4) return T_Numeric_8_4
+                 renames SQL_Impl."-";
+   function "<" (T1, T2 : T_Numeric_8_4) return Boolean renames SQL_Impl."<";
+   function "<=" (T1, T2 : T_Numeric_8_4) return Boolean renames SQL_Impl."<=";
+   function ">" (T1, T2 : T_Numeric_8_4) return Boolean renames SQL_Impl.">";
+   function ">=" (T1, T2 : T_Numeric_8_4) return Boolean renames SQL_Impl.">=";
+   --  Make this type visible here, so that users do not have to explicitly
+   --  'with' GNATCOLL.SQL_Impl.
+
+   package Numeric_8_4_Parameters is new Scalar_Parameters
+      (T_Numeric_8_4, "numeric (8, 4)", Numeric_8_4_To_SQL);
+   subtype SQL_Parameter_Numeric_8_4 is Numeric_8_4_Parameters.SQL_Parameter;
+   package Numeric_8_4_Fields is new Field_Types
+     (T_Numeric_8_4, Numeric_8_4_To_SQL, SQL_Parameter_Numeric_8_4);
+   type SQL_Field_Numeric_8_4 is new Numeric_8_4_Fields.Field with
+     null record;
+   Null_Field_Numeric_8_4 : constant SQL_Field_Numeric_8_4;
+   function Numeric_8_4_Param (Index : Positive)
+                               return Numeric_8_4_Fields.Field'Class
+                         renames Numeric_8_4_Fields.Param;
 
    package Time_Parameters is new Scalar_Parameters
       (Ada.Calendar.Time, "timestamp", Time_To_SQL);
@@ -1305,13 +1410,25 @@ private
      (Float_Fields.Null_Field with null record);
    Null_Field_Long_Float : constant SQL_Field_Long_Float :=
      (Long_Float_Fields.Null_Field with null record);
+   Null_Field_Double_Precision : constant SQL_Field_Double_Precision :=
+     (Double_Precision_Fields.Null_Field with null record);
+   Null_Field_Real : constant SQL_Field_Real :=
+     (Real_Fields.Null_Field with null record);
    Null_Field_Money : constant SQL_Field_Money :=
      (Money_Fields.Null_Field with null record);
+   Null_Field_Interval : constant SQL_Field_Interval :=
+     (Interval_Fields.Null_Field with null record);
+   Null_Field_Numeric_24_8 : constant SQL_Field_Numeric_24_8 :=
+     (Numeric_24_8_Fields.Null_Field with null record);
+   Null_Field_Numeric_8_4 : constant SQL_Field_Numeric_8_4 :=
+     (Numeric_8_4_Fields.Null_Field with null record);
    Null_Field_Time : constant SQL_Field_Time :=
      (Time_Fields.Null_Field with null record);
    Null_Field_Date : constant SQL_Field_Date :=
      (Date_Fields.Null_Field with null record);
    Null_Field_Bigint : constant SQL_Field_Bigint :=
       (Bigint_Fields.Null_Field with null record);
+   Null_Field_Smallint : constant SQL_Field_Smallint :=
+      (Smallint_Fields.Null_Field with null record);
 
 end GNATCOLL.SQL;

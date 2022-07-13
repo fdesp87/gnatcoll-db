@@ -42,10 +42,14 @@ package GNATCOLL.SQL.Orm.Impl is
    function Is_Null (Self : Orm_Element) return Boolean;
    --  Returns True if Self wasn't initialized
 
+   function Smallint_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return Short_Integer;
    function Integer_Value
      (Self : Orm_Element'Class; Field : Field_Index) return Integer;
    function Bigint_Value
      (Self : Orm_Element'Class; Field : Field_Index) return Long_Long_Integer;
+   function Interval_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return Duration;
    function Boolean_Value
      (Self : Orm_Element'Class; Field : Field_Index) return Boolean;
    function String_Value
@@ -56,8 +60,18 @@ package GNATCOLL.SQL.Orm.Impl is
      (Self : Orm_Element'Class; Field : Field_Index) return Ada.Calendar.Time;
    function Float_Value
      (Self : Orm_Element'Class; Field : Field_Index) return Float;
+   function Real_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return Float;
+   function Long_Float_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return Long_Float;
+   function Double_Precision_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return Long_Float;
    function Money_Value
      (Self : Orm_Element'Class; Field : Field_Index) return T_Money;
+   function Numeric_24_8_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return T_Numeric_24_8;
+   function Numeric_8_4_Value
+     (Self : Orm_Element'Class; Field : Field_Index) return T_Numeric_8_4;
    --  Retrieve the specific field from the element
 
    --  Generic implementation of managers.

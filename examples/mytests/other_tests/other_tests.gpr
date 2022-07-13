@@ -1,0 +1,19 @@
+with "gnatcoll";
+with "gnatcoll_postgres";
+
+project other_tests is
+   for Source_Dirs use ("generated", -- generated files
+                        "src");      -- source files
+   for Object_Dir use "obj";
+   for Main use ("other_tests.adb");
+
+   package Compiler is
+      for Switches ("Ada") use ("-g", "-gnat2022");
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-E"); -- Get backtrace for exceptions
+   end Binder;
+
+
+end other_tests;

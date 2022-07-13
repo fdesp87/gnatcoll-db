@@ -88,13 +88,25 @@ private package GNATCOLL.SQL.Exec_Private is
    function Boolean_Value
      (Self  : DBMS_Forward_Cursor;
       Field : Field_Index) return Boolean;
+   function Smallint_Value
+     (Self  : DBMS_Forward_Cursor;
+      Field : Field_Index) return Short_Integer;
    function Integer_Value
      (Self  : DBMS_Forward_Cursor;
       Field : Field_Index) return Integer;
    function Bigint_Value
      (Self  : DBMS_Forward_Cursor;
       Field : Field_Index) return Long_Long_Integer;
+   function Interval_Value
+     (Self  : DBMS_Forward_Cursor;
+      Field : Field_Index) return Duration;
+   function Double_Precision_Value
+     (Self  : DBMS_Forward_Cursor;
+      Field : Field_Index) return Long_Float;
    function Float_Value
+     (Self  : DBMS_Forward_Cursor;
+      Field : Field_Index) return Float;
+   function Real_Value
      (Self  : DBMS_Forward_Cursor;
       Field : Field_Index) return Float;
    function Long_Float_Value
@@ -103,6 +115,12 @@ private package GNATCOLL.SQL.Exec_Private is
    function Money_Value
      (Self  : DBMS_Forward_Cursor;
       Field : Field_Index) return T_Money;
+   function Numeric_24_8_Value
+     (Self  : DBMS_Forward_Cursor;
+      Field : Field_Index) return T_Numeric_24_8;
+   function Numeric_8_4_Value
+     (Self  : DBMS_Forward_Cursor;
+      Field : Field_Index) return T_Numeric_8_4;
    function Time_Value
      (Self  : DBMS_Forward_Cursor;
       Field : Field_Index) return Ada.Calendar.Time;
@@ -119,6 +137,14 @@ private package GNATCOLL.SQL.Exec_Private is
      (Self       : DBMS_Forward_Cursor;
       Connection : access Database_Connection_Record'Class;
       Field      : SQL_Field_Integer) return Integer is abstract;
+   function Last_Id
+     (Self       : DBMS_Forward_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Smallint) return Short_Integer is abstract;
+   function Last_Id
+     (Self       : DBMS_Forward_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Bigint) return Long_Long_Integer is abstract;
    function Field_Count
      (Self : DBMS_Forward_Cursor) return Field_Index is abstract;
    function Field_Name

@@ -1,5 +1,3 @@
-makefile.setup
-
 gnat/
 
 docs/_build
@@ -27,3 +25,13 @@ lib/
 /gnat_src
 
 examples/library/obj
+examples/mytests/dbtest1/*.orm
+examples/mytests/dbtest2/*.orm
+examples/mytests/dbtest9/*.orm
+examples/mytests/other_tests/*.orm
+
+generated/
+
+.clang*
+.#*
+.~*

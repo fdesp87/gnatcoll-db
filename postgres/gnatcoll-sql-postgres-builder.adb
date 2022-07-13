@@ -137,6 +137,10 @@ package body GNATCOLL.SQL.Postgres.Builder is
      (Self : Postgresql_Connection_Record) return String;
    overriding function Field_Type_Money
      (Self : Postgresql_Connection_Record) return String;
+   overriding function Field_Type_Numeric_24_8
+     (Self : Postgresql_Connection_Record) return String;
+   overriding function Field_Type_Numeric_8_4
+     (Self : Postgresql_Connection_Record) return String;
    overriding function Error
      (Connection : access Postgresql_Connection_Record) return String;
    overriding procedure Foreach_Table
@@ -159,6 +163,7 @@ package body GNATCOLL.SQL.Postgres.Builder is
       Table_Name : String;
       Callback   : access procedure
         (Index             : Positive;
+         Constraint        : String;    -- constraint name
          Local_Attribute   : Integer;
          Foreign_Table     : String;
          Foreign_Attribute : Integer));
@@ -207,6 +212,14 @@ package body GNATCOLL.SQL.Postgres.Builder is
         (Self       : Cursor;
          Connection : access Database_Connection_Record'Class;
          Field      : SQL_Field_Integer) return Integer;
+      overriding function Last_Id
+        (Self       : Cursor;
+         Connection : access Database_Connection_Record'Class;
+         Field      : SQL_Field_Smallint) return Short_Integer;
+      overriding function Last_Id
+        (Self       : Cursor;
+         Connection : access Database_Connection_Record'Class;
+         Field      : SQL_Field_Bigint) return Long_Long_Integer;
       overriding function Field_Count
         (Self : Cursor) return GNATCOLL.SQL.Exec.Field_Index;
       overriding function Field_Name
@@ -302,6 +315,56 @@ package body GNATCOLL.SQL.Postgres.Builder is
          Res2.Fetch (Connection, Q);
          if Has_Row (Res2) then
             return Integer_Value (Res2, 0);
+         end if;
+         return -1;
+      end Last_Id;
+
+      overriding function Last_Id
+        (Self       : Cursor;
+         Connection : access Database_Connection_Record'Class;
+         Field      : SQL_Field_Smallint) return Short_Integer
+      is
+         pragma Unreferenced (Self);
+         Q        : SQL_Query;
+         Res2     : Forward_Cursor;
+      begin
+         --  Do not depend on OIDs, since the table might not have them (by
+         --  default, recent versions of postgreSQL disable them. Instead, we
+         --  use the currval() function which returns the last value set for a
+         --  sequence within the current connection.
+
+         Q := SQL_Select
+           (Fields => From_String ("currval('" & Field.Table.all
+            & "_" & Field.Name.all & "_seq')"));
+
+         Res2.Fetch (Connection, Q);
+         if Has_Row (Res2) then
+            return Smallint_Value (Res2, 0);
+         end if;
+         return -1;
+      end Last_Id;
+
+      overriding function Last_Id
+        (Self       : Cursor;
+         Connection : access Database_Connection_Record'Class;
+         Field      : SQL_Field_Bigint) return Long_Long_Integer
+      is
+         pragma Unreferenced (Self);
+         Q        : SQL_Query;
+         Res2     : Forward_Cursor;
+      begin
+         --  Do not depend on OIDs, since the table might not have them (by
+         --  default, recent versions of postgreSQL disable them. Instead, we
+         --  use the currval() function which returns the last value set for a
+         --  sequence within the current connection.
+
+         Q := SQL_Select
+           (Fields => From_String ("currval('" & Field.Table.all
+            & "_" & Field.Name.all & "_seq')"));
+
+         Res2.Fetch (Connection, Q);
+         if Has_Row (Res2) then
+            return Bigint_Value (Res2, 0);
          end if;
          return -1;
       end Last_Id;
@@ -1079,15 +1142,37 @@ package body GNATCOLL.SQL.Postgres.Builder is
                when Constraint_Error =>
                   Is_PK := False; --  no more fields in primary key
             end;
-
-            Callback
-              (Name           => Value (R, 0),
-               Typ            => Value (R, 1),
-               Index          => Current,
-               Description    => Value (R, 3),
-               Not_Null       => Boolean_Value (R, 4),
-               Default_Value  => Value (R, 5),
-               Is_Primary_Key => Is_PK);
+            declare
+               Def_Value : String := Value (R, 5);
+               Idx1, Idx2  : Natural;
+            begin
+               Idx2 := Ada.Strings.Fixed.Index (Def_Value, "'::numeric");
+               if Idx2 < Def_Value'First then
+                  Idx2 := Ada.Strings.Fixed.Index (Def_Value, "'::integer");
+               end if;
+               if Idx2 > Def_Value'First then
+                  Idx1 := Ada.Strings.Fixed.Index
+                    (Source  => Def_Value,
+                     Pattern => "'",
+                     From    => Idx2 - 1,
+                     Going   => Backward);
+                  if Idx1 /= 0 then
+                     Def_Value (Idx1) := ' ';
+                     for I in Idx2 .. Def_Value'Last loop
+                        Def_Value (I) := ' ';
+                     end loop;
+                  end if;
+               end if;
+               Callback
+                 (Name           => Value (R, 0),
+                  Typ            => Value (R, 1),
+                  Index          => Current,
+                  Description    => Value (R, 3),
+                  Not_Null       => Boolean_Value (R, 4),
+                  --  Default_Value  => Value (R, 5),
+                  Default_Value  => Ada.Strings.Fixed.Trim (Def_Value, Both),
+                  Is_Primary_Key => Is_PK);
+            end;
             Next (R);
          end loop;
       end Process_Fields;
@@ -1125,7 +1210,9 @@ package body GNATCOLL.SQL.Postgres.Builder is
          & "   AND pg_attribute.attnum > 0" & Table_Cond
          & "   AND pg_class.oid = pg_attribute.attrelid"
          & "   AND not pg_attribute.attisdropped"
-         & " ORDER BY pg_attribute.attname");
+         --  COMMENTED OUT TO RESPECT THE DESIGN ORDER IN THE DATABASE
+         --   & " ORDER BY pg_attribute.attname"
+        );
 
       if R2.Has_Row then
          Process_Fields (Value (R2, 0));
@@ -1143,6 +1230,7 @@ package body GNATCOLL.SQL.Postgres.Builder is
       Table_Name : String;
       Callback   : access procedure
         (Index             : Positive;
+         Constraint        : String;
          Local_Attribute   : Integer;
          Foreign_Table     : String;
          Foreign_Attribute : Integer))
@@ -1170,6 +1258,7 @@ package body GNATCOLL.SQL.Postgres.Builder is
 
       while Has_Row (R) loop
          declare
+            Constraint   : constant String := Value (R, 1);
             Attr_Array   : constant String := Value (R, 3);
             Foreign      : constant String := Value (R, 4);
             Foreign_Attr : constant String := Value (R, 5);
@@ -1182,6 +1271,7 @@ package body GNATCOLL.SQL.Postgres.Builder is
 
                Callback
                  (Index             => Index,
+                  Constraint        => Constraint,
                   Local_Attribute   => Key1,
                   Foreign_Table     => Foreign,
                   Foreign_Attribute => Key2);
@@ -1383,6 +1473,22 @@ package body GNATCOLL.SQL.Postgres.Builder is
    begin
       return "NUMERIC (" & K_Digits'Img & "," & K_Decimals'Img & ")";
    end Field_Type_Money;
+
+   overriding function Field_Type_Numeric_24_8
+     (Self : Postgresql_Connection_Record) return String
+   is
+      pragma Unreferenced (Self);
+   begin
+      return "NUMERIC (" & N24_8_Digits'Img & "," & N24_8_Decimals'Img & ")";
+   end Field_Type_Numeric_24_8;
+
+   overriding function Field_Type_Numeric_8_4
+     (Self : Postgresql_Connection_Record) return String
+   is
+      pragma Unreferenced (Self);
+   begin
+      return "NUMERIC (" & N8_4_Digits'Img & "," & N8_4_Decimals'Img & ")";
+   end Field_Type_Numeric_8_4;
 
    ------------------
    -- String_Image --

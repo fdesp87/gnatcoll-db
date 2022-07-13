@@ -54,7 +54,7 @@ project GnatColl_SQL is
          when "DEBUG" =>
             for Switches ("Ada") use
               ("-g", "-O0", "-gnata", "-gnatVa", "-gnatQ", "-gnaty", "-gnateE",
-               "-gnatwaCJe", "-fstack-check");
+               "-gnatwaCJ", "-fstack-check");
 
          when "PROD" =>
             --  Do not use -gnatwe for production mode

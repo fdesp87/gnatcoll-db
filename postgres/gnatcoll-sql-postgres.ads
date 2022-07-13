@@ -171,6 +171,22 @@ package GNATCOLL.SQL.Postgres is
    type SQL_Field_Num_Range is
       new NumRanges.SQL_Field_Range with null record;
 
+   package RealRanges is new GNATCOLL.SQL.Ranges
+      (Base_Fields    => GNATCOLL.SQL.Real_Fields,
+       SQL_Type       => "realrange",
+       Ada_Field_Type => "GNATCOLL.SQL.Postgres.SQL_Field_Real_Range");
+   subtype Real_Range is RealRanges.Ada_Range;
+   type SQL_Field_Real_Range is
+      new RealRanges.SQL_Field_Range with null record;
+
+   package SmallintRanges is new GNATCOLL.SQL.Ranges
+      (Base_Fields    => GNATCOLL.SQL.Smallint_Fields,
+       SQL_Type       => "int2range",
+       Ada_Field_Type => "GNATCOLL.SQL.Postgres.SQL_Field_Smallint_Range");
+   subtype Smallint_Range is SmallintRanges.Ada_Range;
+   type SQL_Field_Smallint_Range is
+      new SmallintRanges.SQL_Field_Range with null record;
+
    package IntegerRanges is new GNATCOLL.SQL.Ranges
       (Base_Fields    => GNATCOLL.SQL.Integer_Fields,
        SQL_Type       => "int4range",
@@ -186,6 +202,14 @@ package GNATCOLL.SQL.Postgres is
    subtype Bigint_Range is BigintRanges.Ada_Range;
    type SQL_Field_Bigint_Range is
       new BigintRanges.SQL_Field_Range with null record;
+
+   package IntervalRanges is new GNATCOLL.SQL.Ranges
+      (Base_Fields    => GNATCOLL.SQL.Interval_Fields,
+       SQL_Type       => "intervalrange",
+       Ada_Field_Type => "GNATCOLL.SQL.Postgres.SQL_Field_Interval_Range");
+   subtype Interval_Range is IntervalRanges.Ada_Range;
+   type SQL_Field_Interval_Range is
+      new IntervalRanges.SQL_Field_Range with null record;
 
 private
    type Postgres_Description is new Database_Description_Record with record

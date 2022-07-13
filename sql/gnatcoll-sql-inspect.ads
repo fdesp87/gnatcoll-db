@@ -43,7 +43,8 @@ with GNATCOLL.SQL.Exec;           use GNATCOLL.SQL.Exec;
 with GNATCOLL.VFS;
 with GNAT.Regexp;                 use GNAT.Regexp;
 private with GNATCOLL.Refcount;
-private with GNAT.Strings;
+--  private with GNAT.Strings;
+with GNAT.Strings;
 
 package GNATCOLL.SQL.Inspect is
    --  Work around issue with the Ada containers: the tampering checks
@@ -110,7 +111,7 @@ package GNATCOLL.SQL.Inspect is
      is (SQL_Parameter_Text'(others => <>));
 
    generic
-      SQL_Type       : String;
+      SQL_Type          : String;
       Ada_Field_Mapping : String;
       type Param_Type is new SQL_Parameter_Type with private;
    package Simple_Field_Mappings is
@@ -130,8 +131,7 @@ package GNATCOLL.SQL.Inspect is
          Format       : access Formatter'Class := null;
          For_Database : Boolean := True) return String with Inline;
       overriding function Type_From_SQL
-        (Self : in out Simple_Field_Mapping; Str : String) return Boolean
-        is (Str = SQL_Type);
+        (Self : in out Simple_Field_Mapping; Str : String) return Boolean;
       overriding function Parameter_Type
         (Self : Simple_Field_Mapping) return SQL_Parameter_Type'Class;
    end Simple_Field_Mappings;
@@ -147,6 +147,18 @@ package GNATCOLL.SQL.Inspect is
      (Self : Field_Mapping_Integer) return SQL_Parameter_Type'Class
      is (SQL_Parameter_Integer'(others => <>));
 
+   type Field_Mapping_Smallint is new Field_Mapping with null record;
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Smallint;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String with Inline;
+   overriding function Type_From_SQL
+     (Self : in out Field_Mapping_Smallint; Str : String) return Boolean
+   is (Str = "smallint");
+   overriding function Parameter_Type
+     (Self : Field_Mapping_Smallint) return SQL_Parameter_Type'Class
+     is (SQL_Parameter_Smallint'(others => <>));
+
    type Field_Mapping_Autoincrement is
       new Field_Mapping_Integer with null record;
    overriding function Type_To_SQL
@@ -155,7 +167,8 @@ package GNATCOLL.SQL.Inspect is
       For_Database : Boolean := True) return String
      is (if For_Database
          then Format.Field_Type_Autoincrement
-         else "SQL_Field_Integer");
+         else "SQL_Field_Bigint");
+--          else "SQL_Field_Integer");
    overriding function Type_From_SQL
      (Self : in out Field_Mapping_Autoincrement; Str : String) return Boolean
      is (Str = "autoincrement");
@@ -190,20 +203,78 @@ package GNATCOLL.SQL.Inspect is
      (Self : Field_Mapping_Float) return SQL_Parameter_Type'Class
      is (SQL_Parameter_Float'(others => <>));
 
+   type Field_Mapping_Double_Precision is new Field_Mapping with null record;
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Double_Precision;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String with Inline;
+   overriding function Type_From_SQL
+     (Self : in out Field_Mapping_Double_Precision;
+      Str : String) return Boolean
+     is (Str = "double precision");
+   overriding function Parameter_Type
+     (Self : Field_Mapping_Double_Precision) return SQL_Parameter_Type'Class
+     is (SQL_Parameter_Double_Precision'(others => <>));
+
+   type Field_Mapping_Real is new Field_Mapping with null record;
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Real;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String with Inline;
+   overriding function Type_From_SQL
+     (Self : in out Field_Mapping_Real; Str : String) return Boolean
+     is (Str = "real");
+   overriding function Parameter_Type
+     (Self : Field_Mapping_Real) return SQL_Parameter_Type'Class
+     is (SQL_Parameter_Real'(others => <>));
+
+   type Field_Mapping_Interval is new Field_Mapping with null record;
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Interval;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String;
+   overriding function Type_From_SQL
+     (Self : in out Field_Mapping_Interval; Str : String) return Boolean
+     is (Str = "interval");
+   overriding function Parameter_Type
+     (Self : Field_Mapping_Interval) return SQL_Parameter_Type'Class
+     is (SQL_Parameter_Interval'(others => <>));
+
    type Field_Mapping_Money is new Field_Mapping with null record;
    overriding function Type_To_SQL
      (Self         : Field_Mapping_Money;
       Format       : access Formatter'Class := null;
-      For_Database : Boolean := True) return String
-     is (if For_Database
-         then Format.Field_Type_Money
-         else "SQL_Field_Money");
+      For_Database : Boolean := True) return String;
    overriding function Type_From_SQL
      (Self : in out Field_Mapping_Money; Str : String) return Boolean
      is (Str = "money");
    overriding function Parameter_Type
      (Self : Field_Mapping_Money) return SQL_Parameter_Type'Class
      is (SQL_Parameter_Money'(others => <>));
+
+   type Field_Mapping_Numeric_24_8 is new Field_Mapping with null record;
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Numeric_24_8;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String;
+   overriding function Type_From_SQL
+     (Self : in out Field_Mapping_Numeric_24_8; Str : String) return Boolean
+     is (Str = "numeric(24,8)");
+   overriding function Parameter_Type
+     (Self : Field_Mapping_Numeric_24_8) return SQL_Parameter_Type'Class
+     is (SQL_Parameter_Numeric_24_8'(others => <>));
+
+   type Field_Mapping_Numeric_8_4 is new Field_Mapping with null record;
+   overriding function Type_To_SQL
+     (Self         : Field_Mapping_Numeric_8_4;
+      Format       : access Formatter'Class := null;
+      For_Database : Boolean := True) return String;
+   overriding function Type_From_SQL
+     (Self : in out Field_Mapping_Numeric_8_4; Str : String) return Boolean
+     is (Str = "numeric(8,4)");
+   overriding function Parameter_Type
+     (Self : Field_Mapping_Numeric_8_4) return SQL_Parameter_Type'Class
+     is (SQL_Parameter_Numeric_8_4'(others => <>));
 
    Invalid_Type : exception;
    --  Raise by Read_Schema when some unknown type is used.
@@ -261,6 +332,20 @@ package GNATCOLL.SQL.Inspect is
    function Is_FK (Self : Field) return Field;
    --  If Self is a foreign key, returns the field it points to.
    --  Otherwise, returns No_Field.
+
+   function Is_FK (Self : Field) return Boolean;
+   --  If Self is a foreign key, returns True, otherwise False.
+
+   function Reverse_Relation (Self : Field)
+                              return GNAT.Strings.String_Access;
+   --  If Self is as foreign key and there exists a reverse relation.
+   --  Otherwise null is returned.
+
+   function Is_Multiple_FK (Self : Field) return Boolean;
+   --  If Self is a part of a multiple foreign key
+
+   function Is_Autoincrement (Self : Field) return Boolean;
+   --  Whether this field is autoincrement.
 
    ------------
    -- Tables --
@@ -321,6 +406,14 @@ package GNATCOLL.SQL.Inspect is
       Callback          : access procedure (F : in out Field);
       Include_Inherited : Boolean := False);
    --  For all fields in the table, calls Callback.
+   --  By default, the fields inherited from an abstract table are not list,
+   --  you need to set Include_Inherited to True if you want to access them.
+
+   procedure For_Each_PK
+     (Self              : Table_Description;
+      Callback          : access procedure (F : in out Field);
+      Include_Inherited : Boolean := False);
+   --  For all primary keys in the table, calls Callback.
    --  By default, the fields inherited from an abstract table are not list,
    --  you need to set Include_Inherited to True if you want to access them.
 
@@ -393,17 +486,21 @@ package GNATCOLL.SQL.Inspect is
    type Schema_IO is abstract tagged null record;
    --  An object to read and write a schema to various media
 
-   function Read_Schema (Self : Schema_IO) return DB_Schema is abstract;
+   function Read_Schema (Self : Schema_IO;
+                         Auto_Data : Boolean := False)
+                         return DB_Schema is abstract;
    --  Retrieve the database schema
 
    procedure Write_Schema (Self : Schema_IO; Schema : DB_Schema) is abstract;
-   --  Write the schema
+   --  Write the schema as SQL statements
 
    type DB_Schema_IO is new Schema_IO with record
       DB : Database_Connection;
       Filter : Regexp;
    end record;
-   overriding function Read_Schema (Self : DB_Schema_IO) return DB_Schema;
+   overriding function Read_Schema (Self : DB_Schema_IO;
+                                    Auto_Data : Boolean := False)
+                                    return DB_Schema;
    overriding procedure Write_Schema
      (Self : DB_Schema_IO; Schema : DB_Schema);
    --  Read or write the schema to a live database.
@@ -415,9 +512,12 @@ package GNATCOLL.SQL.Inspect is
       File : GNATCOLL.VFS.Virtual_File;
       Omit_Schema : String_Sets.Set;
    end record;
-   overriding function Read_Schema (Self : File_Schema_IO) return DB_Schema;
-   function Read_Schema
-     (Self : File_Schema_IO; Data : String) return DB_Schema;
+   overriding function Read_Schema (Self : File_Schema_IO;
+                                    Auto_Data : Boolean := False)
+                                    return DB_Schema;
+   function Read_Schema (Self : File_Schema_IO;
+                         Auto_Data : Boolean := False;
+                         Data : String) return DB_Schema;
    overriding procedure Write_Schema
      (Self : File_Schema_IO; Schema : DB_Schema);
    procedure Write_Schema
@@ -425,6 +525,7 @@ package GNATCOLL.SQL.Inspect is
       Schema : DB_Schema;
       Puts   : access procedure (S : String);
       Align_Columns : Boolean := True;
+      Auto_Data     : Boolean := True;
       Show_Comments : Boolean := True);
    --  Read or write the schema from a file.
    --  See GNATCOLL documentation for the format of this file.
@@ -493,6 +594,7 @@ private
       Indexed  : Boolean := False;  --  Do we need an index ?
       Noindex  : Boolean := False;  --  Force disabling of indexes
       Case_Insensitive : Boolean := False;
+      Serial   : Boolean := False;
    end record;
    --  The various properties that can be set for a field in a table.
 

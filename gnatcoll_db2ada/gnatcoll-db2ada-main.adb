@@ -39,6 +39,7 @@ with GNATCOLL.Strings;           use GNATCOLL.Strings;
 with GNATCOLL.Traces;            use GNATCOLL.Traces;
 with GNATCOLL.Utils;             use GNATCOLL.Utils;
 with GNATCOLL.VFS;               use GNATCOLL.VFS;
+with GNATCOLL.DB2Ada.Generate_Ada;
 
 procedure GNATCOLL.Db2Ada.Main
   (Default_DB_Type : String;
@@ -63,12 +64,21 @@ is
       Output_Dot,
       Output_Load,
       Output_Adacreate,
-      Output_Createdb);
+      Output_Createdb,
+      Output_NoShowComments,
+      Output_NoAlignColumns,
+      Output_NoAutoData,
+      Output_Updatable_Views);
    Output : array (Output_Kind) of Boolean := (others => False);
    --  The type of output for this utility
 
    Need_Schema_For_Output : constant array (Output_Kind) of Boolean :=
-     (Output_Ada_Enums => False, Output_Ada_Enums_Image => False,
+     (Output_Ada_Enums       => False,
+      Output_Ada_Enums_Image => False,
+      Output_NoShowComments  => False,
+      Output_NoAlignColumns  => False,
+      Output_NoAutoData      => False,
+      Output_Updatable_Views => False,
       others => True);
    --  Whether the various outputs require a database schema.
 
@@ -269,6 +279,13 @@ is
          Args (4) := new String'("");
       end if;
       Spawn_Dborm ("-ada", Args);
+
+      GNATCOLL.DB2Ada.Generate_Ada.Main
+        (Api             => Generated.all,
+         Orm             => Generated_Orm.all,
+         Output_Dir      => Output_Dir.Display_Full_Name,
+         Schema          => Schema,
+         Updatable_Views => Output (Output_Updatable_Views));
    end Generate_Orm;
 
    ----------------
@@ -330,6 +347,14 @@ is
       Put_Line ("    converted to Postscript via the graphviz utility 'dot'");
       Put_Line ("-load FILE: load the file contents into the database.");
       Put_Line ("    You should also use -dbmodel to specify the schema.");
+
+      Put_Line ("-noautodata: autogenerate some columns. Default false.");
+      Put_Line ("-noaligncolumns: try to align columns. Default false.");
+      Put_Line ("-noshowcomments: output also descriptions. Default false.");
+      Put_Line ("-updatable-views: output code to update views. " &
+                  "Default false.");
+      Put_Line ("-allfk: output all foreign keys. Default false.");
+
       Put_Line ("-output DIR: directory in which created files should go");
       Put_Line ("    Applies to -api, -orm and -api-enums");
 
@@ -362,7 +387,10 @@ is
          case Getopt ("dbhost= h -help dbname= dbuser= dbpasswd= enum= var="
                       & " dbtype= dbmodel= dot text orm= createdb api="
                       & " adacreate dbport= enum-image dbfilter= omit-schema="
-                      & " ormtables= api-enums= load= output=")
+                      & " ormtables= api-enums= load= output= "
+                      & " noautodata noaligncolumns updatable-views"
+                      & " noshowcomments"
+                      & " allFK")
          is
             when 'h' | '-' =>
                Print_Help;
@@ -385,6 +413,17 @@ is
 
                elsif Full_Switch = "adacreate" then
                   Output (Output_Adacreate) := True;
+               end if;
+
+            when 's' =>
+               if Full_Switch = "noshowcomments" then
+                  Output (Output_NoShowComments) := True;
+
+               elsif Full_Switch = "noaligncolumns" then
+                  Output (Output_NoAlignColumns) := True;
+
+               elsif Full_Switch = "noautodata" then
+                  Output (Output_NoAutoData) := True;
                end if;
 
             when 'd' =>
@@ -429,6 +468,11 @@ is
                   Append (Enums, Parameter);
                end if;
 
+            when 'u' =>
+               if Full_Switch = "updatable-views" then
+                  Output (Output_Updatable_Views) := True;
+               end if;
+
             when 'v' =>
                Append (Vars, Parameter);
 
@@ -454,6 +498,7 @@ is
 
                elsif Full_Switch = "output" then
                   Output_Dir := Create (+Parameter);
+
                elsif Full_Switch = "omit-schema" then
                   File_IO.Omit_Schema.Include (Parameter);
                end if;
@@ -502,7 +547,8 @@ is
 
          if DB_Model = null then
             if Need_Schema then
-               Schema := DB_IO.Read_Schema;
+               Schema := DB_IO.Read_Schema
+                 (Auto_Data => not Output (Output_NoAutoData));
             end if;
          end if;
       end if;
@@ -519,7 +565,6 @@ is
 
       File_IO.File := No_File;
 
-      Free (DB_Name);
       Free (DB_Host);
       Free (DB_User);
       Free (DB_Passwd);
@@ -556,7 +601,12 @@ is
       end if;
 
       if Output (Output_Text) then
-         File_IO.Write_Schema (Schema);
+         File_IO.Write_Schema
+           (Schema        => Schema,
+            Puts          => Ada.Text_IO.Put'Access,
+            Align_Columns => not Output (Output_NoAlignColumns),
+            Auto_Data     => not Output (Output_NoAutoData),
+            Show_Comments => not Output (Output_NoShowComments));
       end if;
 
       if Output (Output_Orm) then
@@ -567,6 +617,7 @@ is
          Generate_Dot;
       end if;
 
+      Free (DB_Name);
       Free (DB_Model);
       Free (Generated);
       Free (Generated_Orm);

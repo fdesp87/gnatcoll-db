@@ -813,7 +813,7 @@ def internal_query(pretty, table, schema):
     body = ""
     fk_list = []
     local_vars = [("Table",
-                   "T_Numbered_%s(Aliases(Base))" % table.name)]
+                   "T_Numbered_%s (Aliases (Base))" % table.name)]
 
     field_list = ["Table.%s" % f.name for f in table.fields]
     fklocal = ""
@@ -822,7 +822,7 @@ def internal_query(pretty, table, schema):
         if fk.foreign.show:
             reft = "FK%d" % (index + 1, )
 
-            fklocal += "\n%s : T_Numbered_%s(Aliases(Aliases(Base + %d)));" \
+            fklocal += "\n%s : T_Numbered_%s (Aliases (Aliases (Base + %d)));" \
                 % (reft, fk.foreign.name, index + 1)
 
             # Join criteria. No need to repeat for null FK, since we already
@@ -852,8 +852,8 @@ def internal_query(pretty, table, schema):
             # Add fields for FK table
 
             fk_body = ("C2 := No_Criteria;"
-                       + "Do_Query_%(ref)s(Fields, T, C2,"
-                       + "Aliases(Base + %(index)d),\n"
+                       + "Do_Query_%(ref)s (Fields, T, C2, "
+                       + "Aliases (Base + %(index)d),\n"
                        + "Aliases, Depth - 1, Follow_LJ);") % {
                 "ref": fk.foreign.name,
                 "index": index + 1}
@@ -902,13 +902,13 @@ def internal_query(pretty, table, schema):
 
     if debug:
         tmp = (
-            'Trace(Me, "Do_Query_%s, Base=(" & Base\'Img & Aliases(Base)\'Img'
+            'Trace(Me, "Do_Query_%s, Base=(" & Base\'Img & Aliases (Base)\'Img'
             % table.name)
         tmp += '& ")"'
         for index, fk in enumerate(table.fk):
             if fk.foreign.show:
-                tmp += ('\n & " FK%(i)d=(" & Aliases(Base + %(i)d)\'Img'
-                        + '& Aliases(Aliases(Base + %(i)d))\'Img & ")"') % {
+                tmp += ('\n & " FK%(i)d=(" & Aliases (Base + %(i)d)\'Img'
+                        + '& Aliases (Aliases (Base + %(i)d))\'Img & ")"') % {
                     "i": index + 1}
 
         tmp += ");"
@@ -935,7 +935,7 @@ def internal_query(pretty, table, schema):
                 ("depth",     "natural"),
                 ("Follow_LJ", "Boolean"),
                 ("PK_Only", "Boolean", "False")],
-        section="Managers(implementation details)",
+        section="Managers (implementation details)",
         body=internal_body % {"cap": table.name})
 
     pretty.add_subprogram(
@@ -965,7 +965,7 @@ def create(pretty, table, schema):
                     % (table.name, f.name, f.name)
         body += "end if;"
 
-    body += "Copy(Self.Filter(C), Into => Result); return Result;"
+    body += "Copy (Self.Filter (C), Into => Result); return Result;"
     # body += "return %s_Managers(Self.Filter(C));" % table.name
 
     pretty.add_subprogram(
@@ -994,7 +994,7 @@ def from_cache_params(schema, table, with_self=""):
 
 def from_cache_hash(schema, table, with_self=""):
     if table.has_cache:
-        return "(%d, %s)" % (table.base_key,
+        return "(%d, Long_Long_Integer (%s))" % (table.base_key,
                              from_cache_params(schema, table, with_self))
     else:
         return "(%d, No_Primary_Key)" % table.base_key
@@ -1099,7 +1099,7 @@ with this primary key. If not, the returned value will be a null element
         if f.show():
             if f.can_be_null():
                 tests.append("         if LJ then\n" + str % d
-                             + "\n         end if;\n")
+                             + "         end if;") #\n")
             else:
                 tests.append(str % d)
 
@@ -1115,7 +1115,8 @@ with this primary key. If not, the returned value will be a null element
 
     pretty.add_subprogram(
         name="detach_no_lookup",
-        comment="Same as Detach, but does not check the session cache",
+#        comment="""Same as Detach, but does not check the session cache""",
+        comment=None,
         section="body",
         params=[("self", "%(row)s'Class" % translate),
                 ("session", database_connection)],
@@ -1180,7 +1181,7 @@ def order_sections(schema, pretty, all_tables):
     # Then instanciate the generic packages, which freezes the element types.
     # We can then define the manager types
 
-    pretty.add_section("Managers(implementation details)", "")
+    pretty.add_section("Managers (implementation details)", "")
     pretty.add_section("Manager types", "")
 
     # And now we can create the primitive ops for the managers and lists,
@@ -1300,7 +1301,7 @@ def generate_orb_one_table(name, schema, pretty, all_tables):
              for index, f in enumerate(table.fields) if f.show])
         pretty.add_unique_constants(
             [("""procedure Unchecked_Free is new Ada.Unchecked_Deallocation
-      ( %(row)s_DDR, %(row)s_Data)""" % translate, )]
+      (%(row)s_DDR, %(row)s_Data)""" % translate, )]
             + schema.unchecked_free(name, all_tables))
 
         # Constants Counts_%s are the number of fields needed for %s and its
@@ -1353,7 +1354,7 @@ def generate_orb_one_table(name, schema, pretty, all_tables):
                  M.Select_Related
                    (Depth, Follow_Left_Join => Follow_Left_Join);
                  M.Limit (1);
-                 L := M.Get(Session);
+                 L := M.Get (Session);
                  if not L.Has_Row then
                     return No_Detached_%(row)s;
                  else
@@ -1440,7 +1441,9 @@ def generate_orb_one_table(name, schema, pretty, all_tables):
                 if getpk != "":
                     getpk = "null; --  Can't retrieve multi-key PK"
                     execute = "Execute"
-                elif f.type.sql_type != "integer":
+                elif (f.type.sql_type != "integer") and \
+                     (f.type.sql_type != "smallint") and \
+                     (f.type.sql_type != "bigint"):
                     getpk = "null;  --  Can only retrieve integer PK"
                     execute = "Execute"
                 else:
@@ -1488,7 +1491,6 @@ def generate_orb_one_table(name, schema, pretty, all_tables):
                                  Self.Session.Insert_Or_Update
                                     (D.ORM_FK_%(name)s.all);
                               end if;
-
                               A := A & (DBA.%(table)s.%(name)s = %(fkall)s);
                            end;
                         end if;
@@ -1530,7 +1532,8 @@ def generate_orb_one_table(name, schema, pretty, all_tables):
                 if Missing_PK then
                    Q := SQL_Insert (A);
                 else
-                   Q := SQL_Update (DBA.%(table)s, A, %(where)s);
+                   Q := SQL_Update (DBA.%(table)s, A,
+                        %(where)s);
                 end if;
                 %(execute)s (Self.Session.DB, Q);
 
@@ -1614,7 +1617,7 @@ def generate_orb_one_table(name, schema, pretty, all_tables):
                     'if %s then' % unset
                     + '  return (%d, No_Primary_Key);' % (table.base_key, )
                     + ' else '
-                    + '  return (%d, %s);' % (table.base_key, tmp)
+                    + '  return (%d, Long_Long_Integer (%s));' % (table.base_key, tmp)
                     + " end if;")
 
             else:
@@ -1892,14 +1895,14 @@ def generate_orb_one_table(name, schema, pretty, all_tables):
 %(detached_data_fields)s;
     end record;
     type %(row)s_Data is access all %(row)s_DDR;
-    """ % translate)
+""" % translate)
         pretty.add_private_after("""
     type Detached_%(row)s
        is new Sessions.Detached_Element%(tagged)s with null record;
-    No_%(row)s : constant %(row)s :=(No_Orm_Element with null record);
+    No_%(row)s : constant %(row)s := (No_Orm_Element with null record);
     No_Detached_%(row)s : constant Detached_%(row)s :=
       (Sessions.Detached_Element with null record);
- """ % translate)
+""" % translate)
 
 
 #################
@@ -2028,7 +2031,7 @@ def create_orm(setup, pkg_name, indir, tables=[], omit=[]):
                      omit=omit,  # omit circular deps
                      out=out)
         out.close()
-        exec_or_fail(["gnatchop", "-q", "-w", "tmp_orm"])
+        exec_or_fail(["/opt/GNAT/2021/bin/gnatchop", "-q", "-w", "tmp_orm"])
 
     except Cannot_Parse_Schema:
         return 1
@@ -2079,23 +2082,81 @@ class Field_Type(object):
                     "To_String (%s)", "", "%s",
                     "To_Unbounded_String (%s)"),
                 integer=Field_Type(
-                    "integer", "Integer", "Integer", -1, "Integer", -1,
+                    "integer", "Integer", "Integer", "Integer'First",
+                    "Integer", "Integer'First",
                     "Integer_Value (%s, %s)", "%s", "", "%s'Img", "%s"),
+                interval=Field_Type(
+                    sql_type="interval",
+                    ada_return="Duration",
+                    ada_param="Duration",
+                    default_param="Duration'First",
+                    ada_field="Duration",
+                    default_record="Duration'First",
+                    value_from_db="Interval_Value (%s, %s)",
+                    to_return="%s",
+                    free_field="",
+                    img="Duration'Image (%s)",
+                    to_field="%s"),
                 bigint=Field_Type(
                     sql_type="bigint",
                     ada_return="Long_Long_Integer",
                     ada_param="Long_Long_Integer",
-                    default_param=-1,
+                    default_param="Long_Long_Integer'First",
                     ada_field="Long_Long_Integer",
-                    default_record=-1,
+                    default_record="Long_Long_Integer'First",
                     value_from_db="Bigint_Value (%s, %s)",
                     to_return="%s",
                     free_field="",
                     img="Long_Long_Integer'Image (%s)",
                     to_field="%s"),
+                smallint=Field_Type(
+                    sql_type="smallint",
+                    ada_return="Short_Integer",
+                    ada_param="Short_Integer",
+                    default_param="Short_Integer'First",
+                    ada_field="Short_Integer",
+                    default_record="Short_Integer'First",
+                    value_from_db="Smallint_Value (%s, %s)",
+                    to_return="%s",
+                    free_field="",
+                    img="Short_Integer'Image (%s)",
+                    to_field="%s"),
+                double_precision=Field_Type(
+                    sql_type="double precision",
+                    ada_return="Long_Float",
+                    ada_param="Long_Float",
+                    default_param="Long_Float'First",
+                    ada_field="Long_Float",
+                    default_record="Long_Float'First",
+                    value_from_db="Long_Float_Value (%s, %s)",
+                    to_return="%s",
+                    free_field="",
+                    img="Long_Float'Image (%s)",
+                    to_field="%s"),
+                real=Field_Type(
+                    sql_type="real",
+                    ada_return="Float",
+                    ada_param="Float",
+                    default_param="Float'First",
+                    ada_field="Float",
+                    default_record="Float'First",
+                    value_from_db="Float_Value (%s, %s)",
+                    to_return="%s",
+                    free_field="",
+                    img="Float'Image (%s)",
+                    to_field="%s"),
                 autoincrement=Field_Type(
-                    "integer", "Integer", "Integer", -1, "Integer", -1,
-                    "Integer_Value (%s, %s)", "%s", "", "%s'Img", "%s"),
+                    sql_type="bigint", ##### "integer",
+                    ada_return="Long_Long_Integer",
+                    ada_param="Long_Long_Integer",
+                    default_param="Long_Long_Integer'First",
+                    ada_field="Long_Long_Integer",
+                    default_record="Long_Long_Integer'First",
+                    value_from_db="Bigint_Value (%s, %s)",
+                    to_return="%s",
+                    free_field="",
+                    img="Long_Long_Integer'Image (%s)",
+                    to_field="%s"),
                 time=Field_Type(
                     "time", "Ada.Calendar.Time", "Ada.Calendar.Time",
                     "No_Time", "Ada.Calendar.Time", "No_Time",
@@ -2105,14 +2166,32 @@ class Field_Type(object):
                     "Float'First", "Float_Value (%s, %s)", "%s", "",
                     "%s'Img", "%s"),
                 boolean=Field_Type(
-                    "boolean", "Boolean", "TriBoolean", "Indeterminate",
-                    "Boolean", "False", "Boolean_Value (%s, %s)",
-                    "%s", "", "%s'Img", "%s"),
+                    sql_type="boolean", 
+                    ada_return="Boolean", 
+                    ada_param="TriBoolean", 
+                    default_param="Indeterminate",
+                    ada_field="Boolean", 
+                    default_record="False", 
+                    value_from_db="Boolean_Value (%s, %s)",
+                    to_return="%s", 
+                    free_field="", 
+                    img="%s'Img", 
+                    to_field="%s"),
                 money=Field_Type(
                     "money", "GNATCOLL.SQL.T_Money",
                     "GNATCOLL.SQL.T_Money", "GNATCOLL.SQL.T_Money'First",
                     "GNATCOLL.SQL.T_Money", "GNATCOLL.SQL.T_Money'First",
-                    "Money_Value (%s, %s)", "%s", "", "%s'Img", "%s"))
+                    "Money_Value (%s, %s)", "%s", "", "%s'Img", "%s"),
+                numeric_24_8=Field_Type(
+                    "numeric(24,8)", "GNATCOLL.SQL.T_Numeric_24_8",
+                    "GNATCOLL.SQL.T_Numeric_24_8", "GNATCOLL.SQL.T_Numeric_24_8'First",
+                    "GNATCOLL.SQL.T_Numeric_24_8", "GNATCOLL.SQL.T_Numeric_24_8'First",
+                    "Numeric_24_8_Value (%s, %s)", "%s", "", "%s'Img", "%s"),
+                numeric_8_4=Field_Type(
+                    "numeric(8,4)", "GNATCOLL.SQL.T_Numeric_8_4",
+                    "GNATCOLL.SQL.T_Numeric_8_4", "GNATCOLL.SQL.T_Numeric_8_4'First",
+                    "GNATCOLL.SQL.T_Numeric_8_4", "GNATCOLL.SQL.T_Numeric_8_4'First",
+                    "Numeric_8_4_Value (%s, %s)", "%s", "", "%s'Img", "%s"))
 
         sql = sql.lower()
         if sql in ("timestamp without time zone",
@@ -2120,6 +2199,12 @@ class Field_Type(object):
                    "timestamp",
                    "date"):
             sql = "time"
+        elif sql.startswith("numeric(24,8)"):
+            sql = "numeric_24_8"
+        elif sql.startswith("numeric(8,4)"):
+            sql = "numeric_8_4"
+        elif sql.startswith("double precision"):
+            sql = "double_precision"
         elif sql.startswith("character") or sql == "json":
             sql = "text"
 
@@ -2250,7 +2335,7 @@ class Field(object):
                 descr = Foreign_Key.parse_fk_descr(self, self.name, pk)
                 if len(all_tables[descr.foreign_name].pk) > 1:
                     print(
-                        ("Error: '%s.%s' references '%s', which has more" +
+                        ("Warning: '%s.%s' references '%s', which has more" +
                          " than one PK") % (
                             self.table.name, self.name, descr.foreign_name))
                 pk = all_tables[descr.foreign_name].pk[0].type
@@ -2279,7 +2364,6 @@ class Foreign_Key(object):
         """Once we know all tables, complete the definition of foreign keys
            by pointing to the right table instances and completing the pairs
         """
-
         table = all_tables[self.from_name.lower()]
         self.foreign = all_tables[self.foreign_name.lower()]
         del self.foreign_name
@@ -2474,7 +2558,9 @@ class Table(object):
 
         if len(self.pk) != 1:
             self.has_cache = False
-        elif self.pk[0].type.ada_param != "Integer":
+        elif (self.pk[0].type.ada_param != "Integer") and \
+             (self.pk[0].type.ada_param != "Long_Long_Integer") and \
+             (self.pk[0].type.ada_param != "Short_Integer"):
             self.has_cache = False
 
 
@@ -2556,6 +2642,9 @@ def get_db_schema(setup, requires_pk=False, all_tables=[], omit=[]):
                                        not in omit)
                     table.fields.append(field)
                     if fields[3] == "PK":
+                        field.pk = True
+                        table.pk.append(field)
+                    if fields[3] == "PK,SERIAL":
                         field.pk = True
                         table.pk.append(field)
 

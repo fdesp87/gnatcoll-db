@@ -32,27 +32,28 @@ package GNATCOLL.SQL_Fields is
    ----------------------
    -- Double precision --
    ----------------------
+   --  Commented out, moved to gnatcoll-sql.ads (with some modifications)
 
-   function Long_Float_To_SQL is new Any_Float_To_SQL (Long_Long_Float);
-
-   package Long_Float_Parameters is new Scalar_Parameters
-      (Long_Long_Float, "double precision", Long_Float_To_SQL);
-   subtype SQL_Parameter_Long_Float is Long_Float_Parameters.SQL_Parameter;
-
-   package Long_Float_Field_Mappings is new Simple_Field_Mappings
-      ("double precision",
-       "GNATCOLL.SQL_Fields.SQL_Field_Long_Float",
-       SQL_Parameter_Long_Float);
-
-   package Long_Float_Fields is new Field_Types
-     (Long_Long_Float, Long_Float_To_SQL, SQL_Parameter_Long_Float);
-
-   type SQL_Field_Long_Float is new Long_Float_Fields.Field with null record;
-   Null_Field_Long_Float : constant SQL_Field_Long_Float :=
-     (Long_Float_Fields.Null_Field with null record);
-   function Long_Float_Param (Index : Positive)
-      return Long_Float_Fields.Field'Class
-      renames Long_Float_Fields.Param;
+   --  function Long_Float_To_SQL is new Any_Float_To_SQL (Long_Float);
+   --
+   --  package Long_Float_Parameters is new Scalar_Parameters
+   --     (Long_Float, "double precision", Long_Float_To_SQL);
+   --  subtype SQL_Parameter_Long_Float is Long_Float_Parameters.SQL_Parameter;
+   --
+   --  package Long_Float_Field_Mappings is new Simple_Field_Mappings
+   --     ("double precision", "SQL_Field_Long_Float",
+   --      SQL_Parameter_Long_Float);
+   --
+   --  package Long_Float_Fields is new Field_Types
+   --    (Long_Float, Long_Float_To_SQL, SQL_Parameter_Long_Float);
+   --
+   --  type SQL_Field_Long_Float is new Long_Float_Fields.Field
+   --    with null record;
+   --  Null_Field_Long_Float : constant SQL_Field_Long_Float :=
+   --    (Long_Float_Fields.Null_Field with null record);
+   --  function Long_Float_Param (Index : Positive)
+   --     return Long_Float_Fields.Field'Class
+   --     renames Long_Float_Fields.Param;
 
    -----------------
    -- JSON fields --

@@ -1601,6 +1601,63 @@ package body GNATCOLL.SQL_Impl is
    end Any_Float_To_SQL;
 
    --------------------
+   -- Smallint_To_SQL --
+   --------------------
+
+   function Smallint_To_SQL
+     (Self  : Formatter'Class;
+      Value : Short_Integer;
+      Quote : Boolean) return String
+   is
+      pragma Unreferenced (Self, Quote);
+      Img : constant String := Short_Integer'Image (Value);
+   begin
+      if Img (Img'First) = ' ' then
+         return Img (Img'First + 1 .. Img'Last);
+      else
+         return Img;
+      end if;
+   end Smallint_To_SQL;
+
+   -----------------------------
+   -- Double_Precision_To_SQL --
+   -----------------------------
+
+   function Double_Precision_To_SQL
+     (Self  : Formatter'Class;
+      Value : Long_Float;
+      Quote : Boolean) return String
+   is
+      pragma Unreferenced (Self, Quote);
+      Img : constant String := Long_Float'Image (Value);
+   begin
+      if Img (Img'First) = ' ' then
+         return Img (Img'First + 1 .. Img'Last);
+      else
+         return Img;
+      end if;
+   end Double_Precision_To_SQL;
+
+   --------------------
+   -- Real_To_SQL --
+   --------------------
+
+   function Real_To_SQL
+     (Self  : Formatter'Class;
+      Value : Float;
+      Quote : Boolean) return String
+   is
+      pragma Unreferenced (Self, Quote);
+      Img : constant String := Float'Image (Value);
+   begin
+      if Img (Img'First) = ' ' then
+         return Img (Img'First + 1 .. Img'Last);
+      else
+         return Img;
+      end if;
+   end Real_To_SQL;
+
+   --------------------
    -- Integer_To_SQL --
    --------------------
 
@@ -1637,6 +1694,25 @@ package body GNATCOLL.SQL_Impl is
          return Img;
       end if;
    end Bigint_To_SQL;
+
+   -------------------
+   -- Interval_To_SQL --
+   -------------------
+
+   function Interval_To_SQL
+     (Self  : Formatter'Class;
+      Value : Duration;
+      Quote : Boolean) return String
+   is
+      pragma Unreferenced (Self, Quote);
+      Img : constant String := Duration'Image (Value);
+   begin
+      if Img (Img'First) = ' ' then
+         return Img (Img'First + 1 .. Img'Last);
+      else
+         return Img;
+      end if;
+   end Interval_To_SQL;
 
    -----------------------
    -- Supports_Timezone --
@@ -1721,6 +1797,26 @@ package body GNATCOLL.SQL_Impl is
       return Self.Money_Image (Value);
    end Money_To_SQL;
 
+   function Numeric_24_8_To_SQL
+     (Self  : Formatter'Class;
+      Value : T_Numeric_24_8;
+      Quote : Boolean) return String
+   is
+      pragma Unreferenced (Quote);
+   begin
+      return Self.Numeric_24_8_Image (Value);
+   end Numeric_24_8_To_SQL;
+
+   function Numeric_8_4_To_SQL
+     (Self  : Formatter'Class;
+      Value : T_Numeric_8_4;
+      Quote : Boolean) return String
+   is
+      pragma Unreferenced (Quote);
+   begin
+      return Self.Numeric_8_4_Image (Value);
+   end Numeric_8_4_To_SQL;
+
    -----------------
    -- Money_Image --
    -----------------
@@ -1735,6 +1831,30 @@ package body GNATCOLL.SQL_Impl is
          return Img;
       end if;
    end Money_Image;
+
+   function Numeric_24_8_Image (Self  : Formatter; Value : T_Numeric_24_8)
+                                return String is
+      pragma Unreferenced (Self);
+      Img : constant String := T_Numeric_24_8'Image (Value);
+   begin
+      if Img (Img'First) = ' ' then
+         return Img (Img'First + 1 .. Img'Last);
+      else
+         return Img;
+      end if;
+   end Numeric_24_8_Image;
+
+   function Numeric_8_4_Image (Self  : Formatter; Value : T_Numeric_8_4)
+                               return String is
+      pragma Unreferenced (Self);
+      Img : constant String := T_Numeric_8_4'Image (Value);
+   begin
+      if Img (Img'First) = ' ' then
+         return Img (Img'First + 1 .. Img'Last);
+      else
+         return Img;
+      end if;
+   end Numeric_8_4_Image;
 
    -------------------
    -- String_To_SQL --

@@ -419,13 +419,14 @@ package GNATCOLL.SQL.Sessions is
    --  The following subprograms are for the implementation of the generated
    --  API, and should not be needed directly in your own code.
 
-   No_Primary_Key : constant := -1;
+   No_Primary_Key : constant := Integer'First; --
 
    type Element_Key is record
       Table : Natural;  --  A unique table id, one for each table.
                         --  We recommend using numbers every 1_000_000 or so.
-      Key   : Integer;  --  The element's key (or No_Primary_Key if there is
-                        --  no unique id)
+      Key   : Long_Long_Integer;  --  The element's key
+                                  --  (or No_Primary_Key if there is
+                                  --  no unique id)
    end record;
    --  The key for an element. This must be unique in the database for each
    --  element. Currently, we only support elements with a single integer

@@ -170,13 +170,19 @@ package GNATCOLL.SQL.Exec is
    function "+" (Value : String) return SQL_Parameter;
    function "+" (Value : Unbounded_String) return SQL_Parameter;
    function "+" (Value : Integer) return SQL_Parameter;
+   function As_Smallint (Value : Short_Integer) return SQL_Parameter;
    function As_Bigint (Value : Long_Long_Integer) return SQL_Parameter;
    function "+" (Value : Boolean) return SQL_Parameter;
    function "+" (Value : Float) return SQL_Parameter;
    function As_Long_Float (Value : Long_Float) return SQL_Parameter;
+   function As_Double_Precision (Value : Long_Float) return SQL_Parameter;
+   function As_Real (Value : Float) return SQL_Parameter;
    function "+" (Value : Character) return SQL_Parameter;
    function "+" (Time : Ada.Calendar.Time) return SQL_Parameter;
    function "+" (Value : T_Money) return SQL_Parameter;
+   function "+" (Value : Duration) return SQL_Parameter;
+   function "+" (Value : T_Numeric_24_8) return SQL_Parameter;
+   function "+" (Value : T_Numeric_8_4) return SQL_Parameter;
 
    type SQL_Parameters is array (Positive range <>) of SQL_Parameter;
    No_Parameters : constant SQL_Parameters;
@@ -589,6 +595,14 @@ package GNATCOLL.SQL.Exec is
    function Boolean_Value
      (Self : Forward_Cursor; Field : Field_Index) return Boolean;
 
+   function Smallint_Value
+     (Self    : Forward_Cursor;
+      Field   : Field_Index;
+      Default : Short_Integer) return Short_Integer;
+   function Smallint_Value
+     (Self    : Forward_Cursor;
+      Field   : Field_Index) return Short_Integer;
+
    function Integer_Value
      (Self    : Forward_Cursor;
       Field   : Field_Index;
@@ -609,6 +623,21 @@ package GNATCOLL.SQL.Exec is
       Field   : Field_Index) return Long_Long_Integer;
    --  Reads a value as a bigint.
 
+   function Interval_Value
+     (Self    : Forward_Cursor;
+      Field   : Field_Index;
+      Default : Duration) return Duration;
+   function Interval_Value
+     (Self    : Forward_Cursor;
+      Field   : Field_Index) return Duration;
+   --  Reads a value as a Duration.
+
+   function Real_Value
+     (Self    : Forward_Cursor;
+      Field   : Field_Index;
+      Default : Float) return Float;
+   function Real_Value
+     (Self : Forward_Cursor; Field : Field_Index) return Float;
    function Float_Value
      (Self    : Forward_Cursor;
       Field   : Field_Index;
@@ -617,6 +646,16 @@ package GNATCOLL.SQL.Exec is
      (Self : Forward_Cursor; Field : Field_Index) return Float;
    --  Reads a value as a float. The second version might raise a
    --  Constraint_Error if the field is null or does not contain a float.
+   --  The first version will return the default instead.
+
+   function Double_Precision_Value
+     (Self    : Forward_Cursor;
+      Field   : Field_Index;
+      Default : Long_Float) return Long_Float;
+   function Double_Precision_Value
+     (Self : Forward_Cursor; Field : Field_Index) return Long_Float;
+   --  Reads a value as a long float. The second version might raise a
+   --  Constraint_Error if the field is null or does not contain a long float.
    --  The first version will return the default instead.
 
    function Long_Float_Value
@@ -632,6 +671,12 @@ package GNATCOLL.SQL.Exec is
    function Money_Value
      (Self : Forward_Cursor; Field : Field_Index)
      return T_Money;
+   function Numeric_24_8_Value
+     (Self : Forward_Cursor; Field : Field_Index)
+     return T_Numeric_24_8;
+   function Numeric_8_4_Value
+     (Self : Forward_Cursor; Field : Field_Index)
+     return T_Numeric_8_4;
    function Time_Value
      (Self  : Forward_Cursor; Field : Field_Index) return Ada.Calendar.Time;
    --  Return a specific cell, converted to the appropriate format
@@ -653,6 +698,32 @@ package GNATCOLL.SQL.Exec is
    --  Depending on the backend, this id might be computed through a sql query,
    --  so it is better to cache it if you need to reuse it several times.
 
+   function Last_Id
+     (Self       : Forward_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Bigint) return Long_Long_Integer;
+   --  Return the value set for field in the last INSERT command on that
+   --  connection.
+   --  Field must be an automatically incremented field (or a sql sequence).
+   --  Returns -1 if the id could not be queried (perhaps the previous insert
+   --  failed or was never committed). When the last_id could not be retrieved,
+   --  the connection is set to the failure state
+   --  Depending on the backend, this id might be computed through a sql query,
+   --  so it is better to cache it if you need to reuse it several times.
+   --
+   function Last_Id
+     (Self       : Forward_Cursor;
+      Connection : access Database_Connection_Record'Class;
+      Field      : SQL_Field_Smallint) return Short_Integer;
+   --  Return the value set for field in the last INSERT command on that
+   --  connection.
+   --  Field must be an automatically incremented field (or a sql sequence).
+   --  Returns -1 if the id could not be queried (perhaps the previous insert
+   --  failed or was never committed). When the last_id could not be retrieved,
+   --  the connection is set to the failure state
+   --  Depending on the backend, this id might be computed through a sql query,
+   --  so it is better to cache it if you need to reuse it several times.
+   --
    function Field_Count (Self : Forward_Cursor) return Field_Index;
    --  The number of fields per row in Res
 
@@ -919,6 +990,7 @@ package GNATCOLL.SQL.Exec is
       Table_Name : String;
       Callback   : access procedure
         (Index             : Positive;
+         Constraint        : String;   -- constraint name
          Local_Attribute   : Integer;
          Foreign_Table     : String;
          Foreign_Attribute : Integer)) is abstract;
