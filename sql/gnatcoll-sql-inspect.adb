@@ -58,7 +58,6 @@ package body GNATCOLL.SQL.Inspect is
    Max_Fields_Per_Line : constant := 30;
    --  Maximum number of fields per line (separated by '|')
 
-
    procedure Parse_Line
      (Line         : in out String_List;
       Line_Number  : in out Natural;
@@ -1357,7 +1356,6 @@ package body GNATCOLL.SQL.Inspect is
                Field_Pair'
                  (From => From,
                   To   => Field_From_Index (To_Table, Foreign_Attribute)));
-
          end On_Key;
 
       begin

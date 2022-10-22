@@ -1099,7 +1099,7 @@ with this primary key. If not, the returned value will be a null element
         if f.show():
             if f.can_be_null():
                 tests.append("         if LJ then\n" + str % d
-                             + "         end if;") #\n")
+                             + "\n         end if;") #\n")
             else:
                 tests.append(str % d)
 
@@ -1115,8 +1115,7 @@ with this primary key. If not, the returned value will be a null element
 
     pretty.add_subprogram(
         name="detach_no_lookup",
-#        comment="""Same as Detach, but does not check the session cache""",
-        comment=None,
+        comment="Same as Detach, but does not check the session cache",
         section="body",
         params=[("self", "%(row)s'Class" % translate),
                 ("session", database_connection)],
@@ -1895,7 +1894,7 @@ def generate_orb_one_table(name, schema, pretty, all_tables):
 %(detached_data_fields)s;
     end record;
     type %(row)s_Data is access all %(row)s_DDR;
-""" % translate)
+    """ % translate)
         pretty.add_private_after("""
     type Detached_%(row)s
        is new Sessions.Detached_Element%(tagged)s with null record;
@@ -2146,7 +2145,7 @@ class Field_Type(object):
                     img="Float'Image (%s)",
                     to_field="%s"),
                 autoincrement=Field_Type(
-                    sql_type="bigint", ##### "integer",
+                    sql_type="bigint",
                     ada_return="Long_Long_Integer",
                     ada_param="Long_Long_Integer",
                     default_param="Long_Long_Integer'First",
@@ -2364,6 +2363,7 @@ class Foreign_Key(object):
         """Once we know all tables, complete the definition of foreign keys
            by pointing to the right table instances and completing the pairs
         """
+
         table = all_tables[self.from_name.lower()]
         self.foreign = all_tables[self.foreign_name.lower()]
         del self.foreign_name

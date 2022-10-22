@@ -275,7 +275,7 @@ package body GNATCOLL.Xref.Database is
       D : DB_Schema_IO;
       Schema : DB_Schema;
    begin
-      Schema := Read_Schema (F, DbSchema);
+      Schema := Read_Schema (F, False, DbSchema);
       D.DB := Database_Connection (DB);
       Write_Schema (D, Schema);
       if DB.Success then
