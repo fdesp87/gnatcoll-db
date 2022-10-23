@@ -4,6 +4,9 @@ The GNAT Components Collection (GNATcoll) - Database packages
 This is the DB module of the GNAT Components Collection. Please refer to
 individual components for more details.
 
+Note: this is a fork of the original GNATColl-db package, modified to expand/correct
+some issues. Please read the complete report on ./examples/mytests/Report.pdf
+
 
 Dependencies
 ------------
