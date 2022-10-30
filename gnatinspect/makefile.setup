@@ -1,4 +1,4 @@
-prefix=/opt/GNAT/2021/bin/..
+prefix=/opt/GNAT/12.2.1/bin/..
 BUILD=PROD
 PROCESSORS=1
 TARGET=x86_64-pc-linux-gnu

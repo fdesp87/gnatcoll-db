@@ -1,5 +1,5 @@
-prefix=/opt/GNAT/2021/bin/..
-ENABLE_SHARED=no
+prefix=/opt/GNAT/12.2.1/bin/..
+ENABLE_SHARED=yes
 INTEGRATED=no
 BUILD=PROD
 PROCESSORS=1
