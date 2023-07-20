@@ -1570,12 +1570,13 @@ package body GNATCOLL.Db2Ada.Generate_Ada is
          TIO.Put_Line (Fspec, "with GNATCOLL.Tribooleans; " &
                          "use GNATCOLL.Tribooleans;");
          TIO.Put_Line (Fspec, "with System.Address_Image;");
-         TIO.Put_Line (Fspec, "with " & API & "; use " & API & ";");
+         TIO.Put_Line (Fspec, "with " & Capitalize (API)
+                       & "; use " & Capitalize (API) & ";");
          TIO.Put_Line (Fspec, "pragma Warnings (On);");
          TIO.Put_Line (Fspec, "pragma Style_Checks (Off);");
          TIO.New_Line (Fspec);
          TIO.Put_Line (Fspec, "package " & Capitalize (Orm) & "_New is");
-         TIO.Put_Line (Fspec, "   package DBA renames " & API & ";");
+         TIO.Put_Line (Fspec, "   package DBA renames " & Capitalize (API) & ";");
          TIO.Put_Line (Fspec, "   subtype Related_Depth is Integer " &
                          "range 0 .." & Max_Depth'Image & ";");
          TIO.New_Line (Fspec);

@@ -565,7 +565,7 @@ begin
       Create (Spec_File, Name => F.Display_Full_Name);
       Put_Line (Spec_File, "with GNATCOLL.SQL; use GNATCOLL.SQL;");
 
-      Put_Line (Spec_File, "package " & Generated & "_Names is");
+      Put_Line (Spec_File, "package " & Capitalize (Generated) & "_Names is");
       Put_Line (Spec_File, "   pragma Style_Checks (Off);");
 
       For_Each_Table (Schema, Print_String_Constants'Access);
@@ -583,7 +583,7 @@ begin
          Next (N);
       end loop;
 
-      Put_Line (Spec_File, "end " & Generated & "_Names;");
+      Put_Line (Spec_File, "end " & Capitalize (Generated) & "_Names;");
       Close (Spec_File);
    end if;
 
@@ -615,11 +615,11 @@ begin
    end if;
 
    if Output (Output_Ada_Specs) then
-      Put_Line (Spec_File, "with " & Generated & "_Names;"
-                & " use " & Generated & "_Names;");
+      Put_Line (Spec_File, "with " & Capitalize (Generated) & "_Names;"
+                & " use " & Capitalize (Generated) & "_Names;");
    end if;
 
-   Put_Line (Spec_File, "package " & Generated & " is");
+   Put_Line (Spec_File, "package " & Capitalize (Generated) & " is");
    Put_Line (Spec_File, "   pragma Style_Checks (Off);");
 
    if Output (Output_Ada_Specs) then
@@ -636,7 +636,7 @@ begin
            (Body_File, "with GNATCOLL.SQL.Exec; use GNATCOLL.SQL.Exec;");
       end if;
 
-      Put_Line (Body_File, "package body " & Generated & " is");
+      Put_Line (Body_File, "package body " & Capitalize (Generated) & " is");
       Put_Line (Body_File, "   pragma Style_Checks (Off);");
    end if;
 
@@ -806,11 +806,11 @@ begin
       Print_Database_Create;
    end if;
 
-   Put_Line (Spec_File, "end " & Generated & ";");
+   Put_Line (Spec_File, "end " & Capitalize (Generated) & ";");
    Close (Spec_File);
 
    if Output (Output_Ada_Specs) then
-      Put_Line (Body_File, "end " & Generated & ";");
+      Put_Line (Body_File, "end " & Capitalize (Generated) & ";");
       Close (Body_File);
    end if;
 end Generate;
