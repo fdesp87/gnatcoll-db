@@ -1,6 +1,6 @@
 #!/bin/bash
 
-genprogram="../../../gnatcoll_db2ada/obj/debug/gnatcoll_all2ada"
+genprogram="gnatcoll_all2ada"
 
 function process_db() {
 dbase="-dbhost=localhost \

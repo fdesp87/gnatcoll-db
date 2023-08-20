@@ -189,4 +189,5 @@ begin
    ---------------------------------------------------
 
    GNATCOLL.Traces.Finalize;
+
 end test2;
